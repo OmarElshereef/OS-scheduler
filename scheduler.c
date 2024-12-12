@@ -3,11 +3,11 @@
 
 int algorithm, quantum, process_count;
 
-typedef struct 
+typedef struct Node
 {
     int pid;
     struct Node * next ; 
-}Node ;
+}Node;
 
 typedef struct {
     Node* head;
@@ -94,12 +94,13 @@ bool Advance_process_RR(RR_Queue* q)
 void run_RR(int to_sched_msgq_id) {
     RR_Queue running_queue;
     running_queue.head = NULL;
+    running_queue.active = NULL;
 
     int to_bus_msgq_id, send_val;
     key_t bus_id = ftok("busfile", 65);
     to_bus_msgq_id = msgget(bus_id, 0666 | IPC_CREAT);
 
-    if(to_bus_msgq_id == -1) {
+    if (to_bus_msgq_id == -1) {
         perror("error in creating up queue\n");
         exit(-1);
     }
@@ -108,55 +109,59 @@ void run_RR(int to_sched_msgq_id) {
     int time_progress = getClk();
     int finishedProcs = 0, quantum_counter = 0;
     while (finishedProcs < process_count) {
-    if (time_progress == getClk() - 1) {
-        msgbuff message;
-        int rec_val = msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT);
-
-        if (rec_val != -1) {
-            int id, runtime, priority;
-            sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
-            int pid = fork();
-            if (pid == 0) {
-                char *argsProcess[4] = {"./process.out", message.mtext, NULL};
-                if (execv(argsProcess[0], argsProcess) == -1) {
-                    perror("execv failed");
-                    exit(EXIT_FAILURE);
+        if (time_progress == getClk() - 1) {
+            msgbuff message;
+            while (msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT)!= -1) {
+                int id, runtime, priority;
+                sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
+                int pid = fork();
+                if (pid == 0) {
+                    printf("Process %d with priority %d has arrived.\n", id, priority);
+                    char *argsProcess[3] = {"./process.out", message.mtext, NULL};
+                    if (execv(argsProcess[0], argsProcess) == -1) {
+                        perror("execv failed");
+                        exit(EXIT_FAILURE);
+                    }
+                } else if (pid > 0) {
+                    Node* newNode = (Node*)malloc(sizeof(Node));
+                    newNode->pid = id;
+                    newNode->next = NULL;
+                    Add_process_RR(&running_queue, newNode);
+                } else {
+                    perror("Fork failed");
                 }
-            } else if (pid > 0) {
-                Priority_Node* newNode = (Priority_Node*)malloc(sizeof(Priority_Node));
-                newNode->pid = id;
-                newNode->next = NULL;
-                Add_process_RR(&running_queue, newNode);
-                printf("Process %d with priority %d has arrived.\n", id, priority);
-            } else {
-                perror("Fork failed");
             }
-        }
 
-        if(quantum_counter == quantum) {
-            quantum_counter = 0;
-            Advance_process_RR(&running_queue);
-            rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
-            if(rec_val != -1) {
+            int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
+            if (rec_val != -1) {
                 int id;
-                sscanf(message.mtext,"%d",&id);
+                sscanf(message.mtext, "%d", &id);
                 Remove_Process_RR(&running_queue, id);
                 finishedProcs++;
-                continue;
             }
 
             if (running_queue.head) {
-                int id = running_queue.head->pid;
+                int id = running_queue.active->pid;
                 message.mtype = id;
                 if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
                     perror("msgsnd failed");
                 }
             }
-        }
-        quantum_counter++;
-        time_progress++;
+
+            if (quantum_counter == quantum) {
+                if (running_queue.active != NULL) {
+                    printf("Quantum has ended on %d at time %d, switching to next process.\n", running_queue.active->pid, getClk());
+                    Advance_process_RR(&running_queue);
+                } else {
+                    printf("Quantum has ended, switching to next process.\n");
+                }
+                quantum_counter = 0;
+            }
+            quantum_counter++;
+            time_progress = getClk();
         }
     }
+
     while (wait(NULL) > 0);
 
     msgctl(to_bus_msgq_id, IPC_RMID, NULL);
