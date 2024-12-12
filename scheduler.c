@@ -1,9 +1,30 @@
 #include "headers.h"
+
+
+
 typedef struct 
 {
     long mtype;
     char mtext[70];
 }msgbuff;
+
+
+typedef struct 
+{
+    int PID ; 
+    int state ; //0 = waiting/ready , 1 running
+    int executionTime ; // the whole time a process take 
+    int remainingTime ; // time left and should delete pcb if == 0
+    int waitingTime ; // time spent being ready and not running
+} PCB ;
+
+typedef struct 
+{
+    PCB * pcb;
+    Node * next ; 
+}Node;
+
+
 int main(int argc, char *argv[])
 {
     key_t key_id;

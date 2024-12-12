@@ -4,6 +4,9 @@
 #include <signal.h>
 #include<string.h>
 void clearResources(int);
+
+
+
 typedef struct 
 {
     int id; 
@@ -12,11 +15,18 @@ typedef struct
     int priority; 
 } process;
 
+
+
+
 typedef struct 
 {
     long mtype;
     char mtext[50];
 } msgbuff;
+
+
+
+
 int main(int argc, char *argv[])
 {
     key_t key_id;
@@ -85,12 +95,17 @@ int main(int argc, char *argv[])
     {
         execv("./clk",NULL);
     }
-    pid =fork(); 
-    if(pid==0)
+    else
     {
-        execv("./scheduler",NULL);
-    }
+        pid =fork(); 
+        if(pid==0)
+        {
+            execv("./scheduler",NULL);
+        }
 
+    }
+    
+   
     initClk();
     // To get time use this function. 
     int next_process=0;
@@ -98,7 +113,8 @@ int main(int argc, char *argv[])
     {
 
     int x = getClk();
-   
+    
+    
     while(x==ptr[next_process].arrival_time)
     {
         char str_message[50] ;
