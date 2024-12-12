@@ -189,9 +189,7 @@ void run_PHPF(int to_sched_msgq_id) {
     while (finishedProcs < process_count) {
     if (time_progress == getClk() - 1 || time_progress == 0) {
         msgbuff message;
-        int rec_val = msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT);
-
-        if (rec_val != -1) {
+        while(msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
             int id, runtime, priority;
             sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
             int pid = fork();
@@ -256,9 +254,7 @@ void run_SJF(int to_sched_msgq_id) {
     while (finishedProcs < process_count) {
     if (time_progress == getClk() - 1 || time_progress == 0) {
         msgbuff message;
-        int rec_val = msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT);
-
-        if (rec_val != -1) {
+        while(msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
             int id, runtime, priority;
             sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
             int pid = fork();
@@ -274,13 +270,13 @@ void run_SJF(int to_sched_msgq_id) {
                 newNode->pid = id;
                 newNode->next = NULL;
                 Add_Process_SJF(&running_queue, newNode);
-                printf("Process %d with priority %d has arrived.\n", id, priority);
+                printf("Process %d with priority %d has arrived at time %d.\n", id, priority, time_progress);
             } else {
                 perror("Fork failed");
             }
         }
 
-        rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
+        int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
         if(rec_val != -1) {
             Remove_SJF(&running_queue);
             finishedProcs++;
