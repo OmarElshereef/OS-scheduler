@@ -16,17 +16,6 @@ typedef struct
 } process;
 
 
-
-
-typedef struct 
-{
-    long mtype;
-    char mtext[50];
-} msgbuff;
-
-
-
-
 int main(int argc, char *argv[])
 {
     /*todo
@@ -38,7 +27,7 @@ int main(int argc, char *argv[])
     key_t key_id;
     int to_sched_msgq_id, send_val;
 
-    key_id = ftok("keyfile", 65);
+    key_id = ftok("procfile", 65);
     to_sched_msgq_id = msgget(key_id, 0666 | IPC_CREAT);
 
     
@@ -110,20 +99,21 @@ int main(int argc, char *argv[])
             int scheduleAlgo = atoi(argv[3]);
             
             argsSchedule[0] = "./scheduler.out";
-            printf("algo is %d\n", scheduleAlgo);
             argsSchedule [1] = argv[3];
 
             if(scheduleAlgo == 3) {
                 argsSchedule[2] = argv[5];
             }
             else {
-                argsSchedule[2] = 0;
+                argsSchedule[2] = "0";
             }
-
-            argsSchedule[3] = NULL;
+            char smthn [50];
+            snprintf(smthn, sizeof(smthn), "%d",iterator);
+            argsSchedule[3] = smthn;
+            argsSchedule[4] = NULL;
 
             if (execv("./scheduler.out", argsSchedule) == -1) {
-                perror("execv faileddddddddd");
+                perror("execv failed");
                 exit(EXIT_FAILURE);
             }
         }
@@ -133,44 +123,40 @@ int main(int argc, char *argv[])
     initClk();
     // To get time use this function. 
     int next_process=0;
-    while(next_process<iterator)
-    {
+    while(next_process<iterator) {
+        int x = getClk();
+        while(x==ptr[next_process].arrival_time)
+        {
+            char str_message[50] ;
+            snprintf(str_message, sizeof(str_message), "%d %d %d", ptr[next_process].id,ptr[next_process].run_time,ptr[next_process].priority);
 
-    int x = getClk();
-    
+            msgbuff message;
 
-    while(x==ptr[next_process].arrival_time)
-    {
-        char str_message[50] ;
-        snprintf(str_message, sizeof(str_message), "%d %d %d", ptr[next_process].id,ptr[next_process].run_time,ptr[next_process].priority);
+            message.mtype = 7; 
+            strcpy(message.mtext, str_message);
 
-        msgbuff message;
-
-        message.mtype = 7; 
-        strcpy(message.mtext, str_message);
-
-        send_val = msgsnd(to_sched_msgq_id, &message, sizeof(message.mtext), !IPC_NOWAIT);
-        
-        next_process++;
-    }
-
-    
-    // TODO Generation Main Loop
-    // 5. Create a data structure for processes and provide it with its parameters.
-    // 6. Send the information to the scheduler at the appropriate time.
+            send_val = msgsnd(to_sched_msgq_id, &message, sizeof(message.mtext), !IPC_NOWAIT);
+            
+            next_process++;
+        }
     }
     // 7. Clear clock resources
     sleep(1);
-    destroyClk(true);
+    free(ptr);
 
-
-
-
-    free(ptr); 
+    int status;
+    waitpid(-1, &status, 0);
+    clearResources(0);
     return 0;
 }
 
 void clearResources(int signum)
 {
+    int to_sched_msgq_id, send_val;
+    key_t key_id = ftok("procfile", 65);
+    to_sched_msgq_id = msgget(key_id, 0666 | IPC_CREAT);
+    shmctl(to_sched_msgq_id, IPC_RMID, NULL);
+    destroyClk(true);
+    exit(0);
     // TODO: Clears all resources in case of interruption
 }

@@ -60,3 +60,9 @@ void destroyClk(bool terminateAll)
         killpg(getpgrp(), SIGINT);
     }
 }
+
+typedef struct 
+{
+    long mtype;
+    char mtext[70];
+}msgbuff;
