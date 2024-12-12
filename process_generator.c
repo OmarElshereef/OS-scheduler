@@ -125,8 +125,10 @@ int main(int argc, char *argv[])
     int next_process=0;
     while(next_process<iterator) {
         int x = getClk();
-        while(x==ptr[next_process].arrival_time)
+        while(x>=ptr[next_process].arrival_time && next_process<iterator)
         {
+            printf("The process with id: %d has arrival %d and run: %d with priority: %d at time %d\n",
+               ptr[next_process].id, ptr[next_process].arrival_time, ptr[next_process].run_time, ptr[next_process].priority, getClk());
             char str_message[50] ;
             snprintf(str_message, sizeof(str_message), "%d %d %d", ptr[next_process].id,ptr[next_process].run_time,ptr[next_process].priority);
 
