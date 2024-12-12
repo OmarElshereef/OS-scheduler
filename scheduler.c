@@ -27,9 +27,6 @@ typedef struct Node
 
 
 
-
-
-
 int main(int argc, char *argv[])
 {
     key_t key_id;
@@ -39,7 +36,14 @@ int main(int argc, char *argv[])
     to_sched_msgq_id = msgget(key_id, 0666 | IPC_CREAT);
 
     initClk();
-    printf("Hi from scheduler!!\n");
+
+    int algorithm = atoi(argv[1]);
+    int quantum = 0;
+    if(algorithm == 3) {
+        quantum = atoi(argv[2]);
+    }
+
+    printf("sub from scheduler with algorithm %d and quantum %d\n",algorithm,quantum);
     //TODO: implement the scheduler.
     //TODO: upon termination release the clock resources.
     int time_progress=0;
@@ -49,38 +53,26 @@ int main(int argc, char *argv[])
             //usleep(50000); // Sleep for 500 milliseconds
             time_progress=getClk();
             msgbuff message;
-            int rec_val = msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT);
-            
-            if (rec_val ==-1)
-            {
-                continue;
-            }
+            int rec_val = msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, !IPC_NOWAIT);
             int  id,runtime,priority;
             sscanf(message.mtext,"%d %d %d",&id,&runtime,&priority);
-            int pid;
-            pid = fork();
+            int pid = fork();
             if (pid==0)
             {
-                printf("forked!!\n");
-                /*char input[] = "ls -l /home";
+                char *argsProcess[4];
+                argsProcess[0] = "./process.out";
+                argsProcess [1] = message.mtext;
+                argsProcess[2] = NULL;
 
-                // Tokenize the input string
-                char argv[10]; // Adjust size as needed
-                int i = 0;
-                chartoken = strtok(input, " ");
-                while (token != NULL) {
-                argv[i++] = token;
-                token = strtok(NULL, " ");
+                if (execv("./process.out", argsProcess) == -1) {
+                    perror("execv failed");
+                    exit(EXIT_FAILURE);
                 }
-                argv[i] = NULL; // Null-terminate the array*/
-                //execv("./process.c",message.mtext);
             }
             else if (pid==-1)
             {
-                printf("error in fork\n");
+                perror("error in fork\n");
             }
-            
-            
             //recieve message from generator
             printf("process number %d has arrived with prio %d\n",id,priority);
         

@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     // 2. Read the chosen scheduling algorithm and its parameters, if there are any from the argument list.
     // 3. Initiate and create the scheduler and clock processes.
     // 4. Use this function after creating the clock process to initialize clock.
-    FILE *file = fopen("processes.txt", "r");
+    FILE *file = fopen(argv[1], "r");
     
 
     int notend_file;
@@ -99,16 +99,34 @@ int main(int argc, char *argv[])
     int pid =fork();
     if(pid==0)
     {
-        execv("./clk",NULL);
+        execv("./clk.out",NULL);
     }
     else
     {
         pid =fork(); 
         if(pid==0)
         {
-            execv("./scheduler",NULL);
-        }
+            char *argsSchedule[6];
+            int scheduleAlgo = atoi(argv[3]);
+            
+            argsSchedule[0] = "./scheduler.out";
+            printf("algo is %d\n", scheduleAlgo);
+            argsSchedule [1] = argv[3];
 
+            if(scheduleAlgo == 3) {
+                argsSchedule[2] = argv[5];
+            }
+            else {
+                argsSchedule[2] = 0;
+            }
+
+            argsSchedule[3] = NULL;
+
+            if (execv("./scheduler.out", argsSchedule) == -1) {
+                perror("execv faileddddddddd");
+                exit(EXIT_FAILURE);
+            }
+        }
     }
     
    
