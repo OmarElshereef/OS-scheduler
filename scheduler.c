@@ -18,11 +18,16 @@ typedef struct
     int waitingTime ; // time spent being ready and not running
 } PCB ;
 
-typedef struct 
+typedef struct Node 
 {
     PCB * pcb;
-    Node * next ; 
-}Node;
+    struct Node * next ; 
+};
+
+
+
+
+
 
 
 int main(int argc, char *argv[])
@@ -44,9 +49,38 @@ int main(int argc, char *argv[])
             //usleep(50000); // Sleep for 500 milliseconds
             time_progress=getClk();
             msgbuff message;
-            int rec_val = msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, !IPC_NOWAIT);
-            int id,runtime,priority;
+            int rec_val = msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT);
+            
+            if (rec_val ==-1)
+            {
+                continue;
+            }
+            int  id,runtime,priority;
             sscanf(message.mtext,"%d %d %d",&id,&runtime,&priority);
+            int pid;
+            pid = fork();
+            if (pid==0)
+            {
+                printf("forked!!\n");
+                /*char input[] = "ls -l /home";
+
+                // Tokenize the input string
+                char argv[10]; // Adjust size as needed
+                int i = 0;
+                chartoken = strtok(input, " ");
+                while (token != NULL) {
+                argv[i++] = token;
+                token = strtok(NULL, " ");
+                }
+                argv[i] = NULL; // Null-terminate the array*/
+                //execv("./process.c",message.mtext);
+            }
+            else if (pid==-1)
+            {
+                printf("error in fork\n");
+            }
+            
+            
             //recieve message from generator
             printf("process number %d has arrived with prio %d\n",id,priority);
         

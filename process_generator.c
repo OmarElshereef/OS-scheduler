@@ -29,6 +29,12 @@ typedef struct
 
 int main(int argc, char *argv[])
 {
+    /*todo
+     read args to know quantum and scheduling algorithm
+    */ 
+
+
+    
     key_t key_id;
     int to_sched_msgq_id, send_val;
 
@@ -114,7 +120,7 @@ int main(int argc, char *argv[])
 
     int x = getClk();
     
-    
+
     while(x==ptr[next_process].arrival_time)
     {
         char str_message[50] ;
