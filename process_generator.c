@@ -15,7 +15,6 @@ typedef struct
     int priority; 
 } process;
 
-
 int main(int argc, char *argv[])
 {
     /*todo
@@ -118,8 +117,8 @@ int main(int argc, char *argv[])
             }
         }
     }
-    
-   
+
+
     initClk();
     // To get time use this function. 
     int next_process=0;

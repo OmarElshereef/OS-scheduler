@@ -14,7 +14,6 @@ typedef struct {
     Node* active;
 } RR_Queue;
 
-
 bool Add_process_RR(RR_Queue* q,Node* node)
 {
     if (!q || !node) return false;
@@ -211,7 +210,7 @@ void run_PHPF(int to_sched_msgq_id) {
             }
         }
 
-        rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
+        int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
         if(rec_val != -1) {
             Remove_Process_PHPF(&running_queue);
             finishedProcs++;
@@ -242,6 +241,9 @@ void run_SJF(int to_sched_msgq_id) {
     int to_bus_msgq_id, send_val;
     key_t bus_id = ftok("busfile", 65);
     to_bus_msgq_id = msgget(bus_id, 0666 | IPC_CREAT);
+
+    key_t semkey = ftok("semfile", 75);
+    int sem_id = semget(semkey, 1, IPC_CREAT | 0666);
 
     if(to_bus_msgq_id == -1) {
         perror("error in creating up queue\n");

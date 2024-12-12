@@ -66,3 +66,4 @@ typedef struct
     long mtype;
     char mtext[70];
 }msgbuff;
+
