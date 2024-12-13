@@ -144,9 +144,7 @@ void run_RR(int to_sched_msgq_id) {
                 } else {
                     fprintf(stderr, "Invalid message format: %s\n", message.mtext);
                 }
-                if(quantum_counter == quantum) {
-                    quantum_counter = 0;
-                }
+                quantum_counter = 0;
             }
 
             if (quantum_counter == quantum) {
