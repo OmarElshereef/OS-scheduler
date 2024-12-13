@@ -4,15 +4,6 @@
 
 int algorithm, quantum, process_count;
 
-
-bool Advance_process_RR(RR_Queue* q) 
-{
-    if (!q || q->head == NULL) return false;
-
-    q->active = q->active->next; 
-    return true;
-}
-
 void run_RR(int to_sched_msgq_id) {
     RR_Queue running_queue;
     running_queue.head = NULL;
@@ -28,12 +19,12 @@ void run_RR(int to_sched_msgq_id) {
     }
 
     initClk();
-    int time_progress = -1;
+    int time_progress = getClk() - 1;
     int finishedProcs = 0, quantum_counter = 0;
 
     while (finishedProcs < process_count) {
         if (getClk() == time_progress + 1) {
-            printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk());
+            printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk()+1);
             usleep(50000);
             time_progress = getClk();
             msgbuff message;
@@ -43,7 +34,7 @@ void run_RR(int to_sched_msgq_id) {
                 sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
                 int pid = fork();
                 if (pid == 0) {
-                    printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk());
+                    printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk()+1);
                     char *argsProcess[3] = {"./process.out", message.mtext, NULL};
                     if (execv(argsProcess[0], argsProcess) == -1) {
                         perror("execv failed");
@@ -61,12 +52,11 @@ void run_RR(int to_sched_msgq_id) {
 
             if(running_queue.active) {
                 quantum_counter++;
-                printf("currrent head of queue is %d\n",running_queue.active->pid);
             }
 
             if (running_queue.active) {
                 int id = running_queue.active->pid;
-                printf("Process %d is active at time %d.\n", id, getClk());
+                printf("Process %d is active at time %d.\n", id, getClk()+1);
                 message.mtype = id;
                 if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
                     perror("msgsnd failed");
@@ -76,14 +66,9 @@ void run_RR(int to_sched_msgq_id) {
             usleep(50000);
             int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
             if (rec_val != -1) {
-                int id;
-                if (sscanf(message.mtext, "%d", &id) == 1) {
-                    Remove_Process_RR(&running_queue, id);
+                    Remove_Process_RR(&running_queue, running_queue.active->pid);
                     finishedProcs++;
                     quantum_counter = 0;
-                } else {
-                    fprintf(stderr, "Invalid message format: %s\n", message.mtext);
-                }
             }
 
             if (quantum_counter == quantum) {

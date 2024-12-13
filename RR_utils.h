@@ -9,6 +9,14 @@ typedef struct {
     Node* active;
 } RR_Queue;
 
+bool Advance_process_RR(RR_Queue* q) 
+{
+    if (!q || q->head == NULL) return false;
+
+    q->active = q->active->next; 
+    return true;
+}
+
 bool Add_process_RR(RR_Queue* q,Node* node)
 {
     if (!q || !node) return false;
@@ -36,7 +44,7 @@ bool Remove_Process_RR(RR_Queue* q, int pid) {
 
     Node* current = q->head;
     Node* previous = NULL;
-
+    
     // Case 1: Only one node in the queue
     if (current->next == current) {
         if (current->pid == pid) {
