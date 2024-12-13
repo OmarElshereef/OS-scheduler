@@ -144,13 +144,8 @@ void run_RR(int to_sched_msgq_id) {
                 } else {
                     fprintf(stderr, "Invalid message format: %s\n", message.mtext);
                 }
-            }
-
-            if (running_queue.head) {
-                int id = running_queue.active->pid;
-                message.mtype = id;
-                if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
-                    perror("msgsnd failed");
+                if(quantum_counter == quantum) {
+                    quantum_counter = 0;
                 }
             }
 
@@ -161,8 +156,16 @@ void run_RR(int to_sched_msgq_id) {
                 quantum_counter = 0;
                 }
             }
-            quantum_counter++;
-            time_progress++;
+            if(running_queue.head)
+                quantum_counter++;
+
+            if (running_queue.head) {
+                int id = running_queue.active->pid;
+                message.mtype = id;
+                if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
+                    perror("msgsnd failed");
+                }
+            }
         }
     }
 
@@ -220,7 +223,6 @@ void run_PHPF(int to_sched_msgq_id) {
         if(rec_val != -1) {
             Remove_Process_PHPF(&running_queue);
             finishedProcs++;
-            continue;
         }
 
         if (running_queue.head) {
@@ -228,9 +230,8 @@ void run_PHPF(int to_sched_msgq_id) {
             message.mtype = id;
             if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
                 perror("msgsnd failed");
+                }
             }
-        }
-        time_progress++;
         }
     }
     while (wait(NULL) > 0);
@@ -291,7 +292,6 @@ void run_SJF(int to_sched_msgq_id) {
         if(rec_val != -1) {
             Remove_SJF(&running_queue);
             finishedProcs++;
-            continue;
         }
 
         if (running_queue.head) {

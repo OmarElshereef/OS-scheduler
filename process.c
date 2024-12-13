@@ -20,7 +20,6 @@ int main(int agrc, char *argv[])
     while (remainingtime > 0) {
         msgbuff message;
         int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), id, IPC_NOWAIT);
-        
         if (rec_val == -1) {
             if (errno != ENOMSG) { // If error is not "no message"
                 perror("msgrcv failed");
@@ -29,12 +28,10 @@ int main(int agrc, char *argv[])
             // No message, skip iteration
             continue;
         }
-
-        // Process the message
         remainingtime--;
     }
 
-    printf("process id %d finished at time %d\n",id,getClk());
+    printf("process id %d finished at time %d\n",id,getClk()+1);
     msgbuff message;
     message.mtype = 99;
     char smthn [70];
