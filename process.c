@@ -30,7 +30,6 @@ int main(int agrc, char *argv[])
         }
         remainingtime--;
     }
-
     printf("process id %d finished at time %d\n",id,getClk()+1);
     msgbuff message;
     message.mtype = 99;

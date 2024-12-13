@@ -36,14 +36,13 @@ bool Add_process_RR(RR_Queue* q,Node* node)
 }
 
 
-bool Remove_Process_RR(RR_Queue* q,int pid)
-{
+bool Remove_Process_RR(RR_Queue* q, int pid) {
     if (!q || q->head == NULL) return false;
 
     Node* current = q->head;
     Node* previous = NULL;
 
-    
+    // Case 1: Only one node in the queue
     if (current->next == current) {
         if (current->pid == pid) {
             q->head = NULL;
@@ -51,21 +50,27 @@ bool Remove_Process_RR(RR_Queue* q,int pid)
             free(current);
             return true;
         }
-        return false; 
+        return false; // PID not found
     }
 
+    // Case 2: Multiple nodes in the queue
     do {
         if (current->pid == pid) {
-            if (previous) {
+            if (current == q->head) {
+                // Update the head pointer
+                q->head = current->next;
+
+                // Find the tail and update its next pointer
+                Node* tail = q->head;
+                while (tail->next != current) {
+                    tail = tail->next;
+                }
+                tail->next = q->head; // Maintain the circular link
+            } else if (previous) {
                 previous->next = current->next;
             }
-            
-            
-            if (current == q->head) {
-                q->head = current->next;
-            }
 
-            
+            // Update the active pointer if needed
             if (current == q->active) {
                 q->active = current->next;
             }
@@ -78,8 +83,28 @@ bool Remove_Process_RR(RR_Queue* q,int pid)
         current = current->next;
     } while (current != q->head);
 
-    return false; 
+    return false; // PID not found
 }
+
+
+
+void Print_RR_Queue(RR_Queue* q) {
+    if (!q || q->head == NULL) {
+        printf("The Round Robin Queue is empty.\n");
+        return;
+    }
+
+    printf("Round Robin Queue Elements:\n");
+
+    Node* current = q->head;
+    do {
+        printf("Process PID: %d, Next PID: %d\n", 
+               current->pid, 
+               current->next->pid);
+        current = current->next;
+    } while (current != q->head); // Loop until we circle back to the head
+}
+
 
 
 bool Advance_process_RR(RR_Queue* q) 
@@ -134,7 +159,6 @@ void run_RR(int to_sched_msgq_id) {
                     perror("Fork failed");
                 }
             }
-
             int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
             if (rec_val != -1) {
                 int id;
@@ -154,16 +178,18 @@ void run_RR(int to_sched_msgq_id) {
                 quantum_counter = 0;
                 }
             }
-            if(running_queue.head)
-                quantum_counter++;
-
-            if (running_queue.head) {
+            
+            if (running_queue.active) {
                 int id = running_queue.active->pid;
                 message.mtype = id;
                 if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
                     perror("msgsnd failed");
                 }
             }
+
+            if(running_queue.active)
+                quantum_counter++;
+
         }
     }
 
