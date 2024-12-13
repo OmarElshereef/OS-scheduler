@@ -105,11 +105,14 @@ void run_RR(int to_sched_msgq_id) {
     }
 
     initClk();
-    int time_progress = 0;
+    int time_progress = -1;
     int finishedProcs = 0, quantum_counter = 0;
 
     while (finishedProcs < process_count) {
-        if (time_progress == getClk() - 1 || time_progress == 0) {
+        if (getClk() == time_progress + 1) {
+            time_progress = getClk();
+            usleep(50000);
+            
             msgbuff message;
             while (msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
                 int id, runtime, priority;
@@ -183,10 +186,13 @@ void run_PHPF(int to_sched_msgq_id) {
     }
 
     initClk();
-    int time_progress = getClk();
+    int time_progress = -1;
     int finishedProcs = 0;
     while (finishedProcs < process_count) {
-    if (time_progress == getClk() - 1 || time_progress == 0) {
+    if (getClk() == time_progress + 1) {
+        time_progress = getClk();
+        usleep(50000);
+
         msgbuff message;
         while(msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
             int id, runtime, priority;
@@ -251,11 +257,14 @@ void run_SJF(int to_sched_msgq_id) {
     }
 
     initClk();
-    int time_progress = getClk();
+    int time_progress = -1;
     int finishedProcs = 0;
     while (finishedProcs < process_count) {
-    if (time_progress == getClk() - 1 || time_progress == 0) {
+    if (getClk() == time_progress + 1) {
         msgbuff message;
+        time_progress = getClk();
+
+        usleep(50000);
         while(msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
             int id, runtime, priority;
             sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
@@ -292,7 +301,6 @@ void run_SJF(int to_sched_msgq_id) {
                 perror("msgsnd failed");
             }
         }
-        time_progress++;
         }
     }
     while (wait(NULL) > 0);
