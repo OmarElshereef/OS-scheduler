@@ -12,23 +12,32 @@ int main(int agrc, char *argv[])
     char* data = argv[1];
     int id, runtime, priority, remainingtime;
     sscanf(data,"%d %d %d",&id,&runtime,&priority);
-    printf("hello I am process %d with priority %d and run time %d \n",id,priority,runtime);
 
     initClk();
     remainingtime = runtime;
+    int currenttime = getClk() - 1;
+    printf("process id %d started at time %d\n",id,getClk()+1);
     //TODO The process needs to get the remaining time from somewhere
-    while (remainingtime > 0) {
-        msgbuff message;
-        int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), id, IPC_NOWAIT);
-        if (rec_val == -1) {
-            if (errno != ENOMSG) { // If error is not "no message"
-                perror("msgrcv failed");
+    while (true) {
+        if(getClk() >= currenttime + 1) {
+            usleep(75000);
+            msgbuff message;
+            rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), id, IPC_NOWAIT);
+            if (rec_val == -1) {
+                if (errno != ENOMSG) { // If error is not "no message"
+                    perror("msgrcv failed");
+                    break;
+                }
+                // No message, skip iteration
+                continue;
+            }
+            remainingtime--;
+            currenttime = getClk();
+            printf("advancing process id %d at time %d time left %d\n", id, getClk()+1, remainingtime);
+            if(remainingtime == 0) {
                 break;
             }
-            // No message, skip iteration
-            continue;
         }
-        remainingtime--;
     }
     printf("process id %d finished at time %d\n",id,getClk()+1);
     msgbuff message;

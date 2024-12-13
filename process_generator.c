@@ -84,11 +84,14 @@ int main(int argc, char *argv[])
     }
     */
     fclose(file);
+    
     int pid =fork();
     if(pid==0)
     {
-        char *nothing[1];
-        execv("./clk.out",NULL);
+        char *nothing[2];
+        nothing[0] = "./clk.out";
+        nothing[1] = NULL;
+        execv("./clk.out",nothing);
     }
     else
     {
@@ -117,33 +120,44 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             }
         }
+        else{
+        }
     }
 
-
-    initClk();
     // To get time use this function. 
-    int next_process=0;
-    while(next_process<iterator) {
-        int x = getClk();
-        while(x>=ptr[next_process].arrival_time && next_process<iterator)
-        {
-            char str_message[50] ;
-            snprintf(str_message, sizeof(str_message), "%d %d %d", ptr[next_process].id,ptr[next_process].run_time,ptr[next_process].priority);
+    int next_process = 0;
+    usleep(1000);
+    initClk();
+    while (next_process < iterator) {
+        int current_time = getClk();
+        // Skip busy-waiting if the process has not arrived yet
+        if (current_time < ptr[next_process].arrival_time) {
+            // Sleep until the next process's arrival time
+            int sleep_duration = (ptr[next_process].arrival_time - current_time) * 1000; // Convert to microseconds
+            if (sleep_duration > 0) {
+                usleep(sleep_duration);
+            }
+            continue;
+        }
+
+        // Process has arrived
+        if (current_time >= ptr[next_process].arrival_time) {
+            char str_message[50];
+            snprintf(str_message, sizeof(str_message), "%d %d %d", ptr[next_process].id, ptr[next_process].run_time, ptr[next_process].priority);
 
             msgbuff message;
-
-            message.mtype = 7; 
+            message.mtype = 7;
             strcpy(message.mtext, str_message);
 
-            send_val = msgsnd(to_sched_msgq_id, &message, sizeof(message.mtext), !IPC_NOWAIT);
-            
+            send_val = msgsnd(to_sched_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT);
+            if (send_val == -1) {
+                perror("msgsnd failed");
+            }
             next_process++;
         }
     }
     // 7. Clear clock resources
-    sleep(1);
     free(ptr);
-
     int status;
     waitpid(-1, &status, 0);
     clearResources(0);
