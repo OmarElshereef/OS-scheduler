@@ -63,7 +63,7 @@ void run_RR(int to_sched_msgq_id) {
                 }
             }
 
-            usleep(50000);
+            usleep(100000);
             int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
             if (rec_val != -1) {
                     Remove_Process_RR(&running_queue, running_queue.active->pid);
