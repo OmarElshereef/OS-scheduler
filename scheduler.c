@@ -96,6 +96,9 @@ void run_RR(int to_sched_msgq_id) {
 }
 
 void run_MLFP(int to_sched_msgq_id) {
+    PCBEntry pcbtable[process_count+1];
+    int activeProcess = 0;
+
     RR_Queue running_queue[11];
     for(int i=0;i<11;i++)
     {
@@ -112,14 +115,14 @@ void run_MLFP(int to_sched_msgq_id) {
     }
 
     initClk();
-    int time_progress = getClk() - 1;
+    int time_progress = getClk() ;
     int finishedProcs = 0, quantum_counter = 0;
     int queue_turn=11;
     int non_empty_queues=0;
     bool first_time_queue10=true;
     while (finishedProcs < process_count) {
         if (getClk() == time_progress + 1) {
-            printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk()+1);
+            //printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk());
             
             usleep(50000);
             time_progress = getClk();
@@ -130,7 +133,7 @@ void run_MLFP(int to_sched_msgq_id) {
                 sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
                 int pid = fork();
                 if (pid == 0) {
-                    printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk()+1);
+                    //printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk());
                     char *argsProcess[3] = {"./process.out", message.mtext, NULL};
                     if (execv(argsProcess[0], argsProcess) == -1) {
                         perror("execv failed");
@@ -142,6 +145,8 @@ void run_MLFP(int to_sched_msgq_id) {
                     newNode->priority = priority;
                     newNode->next = NULL;
                     Add_process_RR(&running_queue[priority], newNode);
+                    addPCBentry(pcbtable, id, getClk(), runtime, priority);
+
                 } else {
                     perror("Fork failed");
                 }
@@ -169,8 +174,9 @@ void run_MLFP(int to_sched_msgq_id) {
                 quantum_counter++;
             
                 int id = running_queue[queue_turn].active->pid;
-                printf("Process %d is active at time %d.\n", id, getClk()+1);
                 message.mtype = id;
+                advancePCBtable(pcbtable, id, activeProcess, process_count);
+                activeProcess = id;
                 if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
                     perror("msgsnd failed");
                 }
@@ -185,7 +191,7 @@ void run_MLFP(int to_sched_msgq_id) {
             }
 
             if (quantum_counter == quantum) {
-                    printf("Quantum has ended on %d at time %d, switching to next process.\n", running_queue[queue_turn].active->pid, getClk());
+                    //printf("Quantum has ended on %d at time %d, switching to next process.\n", running_queue[queue_turn].active->pid, getClk());
                     if(queue_turn==10)
                     {
                         if(Rounded_Back_to_start(&running_queue[10]))

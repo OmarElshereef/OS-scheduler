@@ -23,7 +23,7 @@ void DecrementPCBentrytime(PCBEntry* pcbtable, int id) {
     pcbtable[id].remaining_time--;
     if(pcbtable[id].remaining_time == 0) {
         pcbtable[id].state = 0;
-        printf("At time %d process %d finished arr %d total %d remain %d wait %d\n", getClk(), id, pcbtable[id].arrival_time, pcbtable[id].run_time, pcbtable[id].remaining_time, pcbtable[id].totalwait);
+        printf("At time %d process %d finished arr %d total %d remain %d wait %d\n", getClk()+1, id, pcbtable[id].arrival_time, pcbtable[id].run_time, pcbtable[id].remaining_time, pcbtable[id].totalwait);
     }
 }
 
