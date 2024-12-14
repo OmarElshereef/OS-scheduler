@@ -1,6 +1,9 @@
 typedef struct Node
 {
     int pid;
+    int priority;
+    int start_time;
+    int finish_time;
     struct Node * next ; 
 }Node;
 
@@ -16,7 +19,21 @@ bool Advance_process_RR(RR_Queue* q)
     q->active = q->active->next; 
     return true;
 }
+bool Rounded_Back_to_start(RR_Queue* q)
+{
+    if(!q)
+    {
+        return false;
+    }
+        if(q->active->next == q->head)
+        {
 
+            return true;
+        } 
+
+    return false;
+
+}
 bool Add_process_RR(RR_Queue* q,Node* node)
 {
     if (!q || !node) return false;

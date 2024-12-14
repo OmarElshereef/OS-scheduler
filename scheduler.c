@@ -107,10 +107,11 @@ void run_MLFP(int to_sched_msgq_id) {
     int finishedProcs = 0, quantum_counter = 0;
     int queue_turn=11;
     int non_empty_queues=0;
-
+    bool first_time_queue10=true;
     while (finishedProcs < process_count) {
         if (getClk() == time_progress + 1) {
             printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk()+1);
+            
             usleep(50000);
             time_progress = getClk();
             msgbuff message;
@@ -129,6 +130,7 @@ void run_MLFP(int to_sched_msgq_id) {
                 } else if (pid > 0) {
                     Node* newNode = (Node*)malloc(sizeof(Node));
                     newNode->pid = id;
+                    newNode->priority = priority;
                     newNode->next = NULL;
                     Add_process_RR(&running_queue[priority], newNode);
                 } else {
@@ -148,7 +150,6 @@ void run_MLFP(int to_sched_msgq_id) {
                         if(i<queue_turn)
                         {
                             queue_turn=i;
-                            printf("the turn is on queue %d\n",i);
 
                         }
                     }
@@ -158,7 +159,7 @@ void run_MLFP(int to_sched_msgq_id) {
             if(non_empty_queues) {
                 quantum_counter++;
             
-                int id = running_queue[queue_turn].head->pid;
+                int id = running_queue[queue_turn].active->pid;
                 printf("Process %d is active at time %d.\n", id, getClk()+1);
                 message.mtype = id;
                 if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
@@ -169,24 +170,68 @@ void run_MLFP(int to_sched_msgq_id) {
             usleep(100000);
             int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
             if (rec_val != -1) {
-                    Remove_Process_RR(&running_queue[queue_turn], running_queue[queue_turn].head->pid);
+                    Remove_Process_RR(&running_queue[queue_turn], running_queue[queue_turn].active->pid);
                     finishedProcs++;
                     quantum_counter = 0;
             }
 
             if (quantum_counter == quantum) {
-                    printf("Quantum has ended on %d at time %d, switching to next process.\n", running_queue[queue_turn].head->pid, getClk());
-                    Node* degradated= Dequeue_Process_RR(&running_queue[queue_turn], running_queue[queue_turn].head->pid);
-                    
-                    Add_process_RR(&running_queue[(queue_turn+1<11)?queue_turn+1:queue_turn], degradated);
-                    printf("degradation happened");
+                    printf("Quantum has ended on %d at time %d, switching to next process.\n", running_queue[queue_turn].active->pid, getClk());
+                    if(queue_turn==10)
+                    {
+                        if(Rounded_Back_to_start(&running_queue[10]))
+                        {
+                            
+                            RR_Queue temp;
+                            temp.active=NULL;
+                            temp.head=NULL;
+                            while(RR_isEmpty(&running_queue[10])==false)
+                            {
+                                Node* p= Dequeue_Process_RR(&running_queue[10], running_queue[10].head->pid);
+                                if(p->priority==10)
+                                {
+                                    Add_process_RR(&temp, p);
 
+                                    continue;
+                                }
+                                Add_process_RR(&running_queue[p->priority], p);
+
+
+                            }
+                            while(RR_isEmpty(&temp)==false)
+                            {
+                                Node* p= Dequeue_Process_RR(&temp, temp.head->pid);
+                                Add_process_RR(&running_queue[10], p);
+
+                            }
+                            running_queue[10].active=running_queue[10].head;
+                            first_time_queue10=true;
+                            
+
+                        }
+                        else
+                        {
+                            if(first_time_queue10==false)
+                            {
+                                Advance_process_RR(&running_queue[10]);
+                            }
+                            else
+                            {
+                                first_time_queue10=false;
+                            }
+                        }
+                    }
+                    else{
+
+                        Node* degradated= Dequeue_Process_RR(&running_queue[queue_turn], running_queue[queue_turn].active->pid);
+                        
+                        Add_process_RR(&running_queue[queue_turn+1], degradated);
+                    }
                 quantum_counter = 0;
                 
             }
         }
     }
-    printf("Scheduler ended\n");
 
     while (wait(NULL) > 0);
 
