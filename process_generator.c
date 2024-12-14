@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
             argsSchedule[0] = "./scheduler.out";
             argsSchedule [1] = argv[3];
 
-            if(scheduleAlgo == 3) {
+            if(scheduleAlgo == 3 || scheduleAlgo == 4) {
                 argsSchedule[2] = argv[5];
             }
             else {

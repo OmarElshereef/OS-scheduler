@@ -86,7 +86,120 @@ void run_RR(int to_sched_msgq_id) {
     msgctl(to_bus_msgq_id, IPC_RMID, NULL);
     destroyClk(true);
 }
+void run_MLFP(int to_sched_msgq_id) {
+    RR_Queue running_queue[11];
+    for(int i=0;i<11;i++)
+    {
+        running_queue[i].head = NULL;
+        running_queue[i].active = NULL;
+    }
+    int to_bus_msgq_id, send_val;
+    key_t bus_id = ftok("busfile", 65);
+    to_bus_msgq_id = msgget(bus_id, 0666 | IPC_CREAT);
 
+    if (to_bus_msgq_id == -1) {
+        perror("error in creating up queue\n");
+        exit(-1);
+    }
+
+    initClk();
+    int time_progress = getClk() - 1;
+    int finishedProcs = 0, quantum_counter = 0;
+    int queue_turn=11;
+    int non_empty_queues=0;
+
+    while (finishedProcs < process_count) {
+        if (getClk() == time_progress + 1) {
+            printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk()+1);
+            usleep(50000);
+            time_progress = getClk();
+            msgbuff message;
+            
+            while (msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
+                int id, runtime, priority;
+                sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
+                int pid = fork();
+                if (pid == 0) {
+                    printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk()+1);
+                    char *argsProcess[3] = {"./process.out", message.mtext, NULL};
+                    if (execv(argsProcess[0], argsProcess) == -1) {
+                        perror("execv failed");
+                        exit(EXIT_FAILURE);
+                    }
+                } else if (pid > 0) {
+                    Node* newNode = (Node*)malloc(sizeof(Node));
+                    newNode->pid = id;
+                    newNode->next = NULL;
+                    Add_process_RR(&running_queue[priority], newNode);
+                } else {
+                    perror("Fork failed");
+                }
+            }
+
+            if(quantum_counter==0)
+            {
+                non_empty_queues=0;
+                queue_turn=11;
+                for(int i=0;i<11;i++)
+                {
+                    if(RR_isEmpty(&running_queue[i])==false)
+                    {
+                        non_empty_queues++;
+                        if(i<queue_turn)
+                        {
+                            queue_turn=i;
+                            printf("the turn is on queue %d\n",i);
+
+                        }
+                    }
+
+                }
+            }
+            if(non_empty_queues) {
+                quantum_counter++;
+            
+                int id = running_queue[queue_turn].head->pid;
+                printf("Process %d is active at time %d.\n", id, getClk()+1);
+                message.mtype = id;
+                if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
+                    perror("msgsnd failed");
+                }
+            }
+
+            usleep(100000);
+            int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
+            if (rec_val != -1) {
+                    Remove_Process_RR(&running_queue[queue_turn], running_queue[queue_turn].head->pid);
+                    finishedProcs++;
+                    quantum_counter = 0;
+            }
+
+            if (quantum_counter == quantum) {
+                    printf("Quantum has ended on %d at time %d, switching to next process.\n", running_queue[queue_turn].head->pid, getClk());
+                    Node* degradated= Dequeue_Process_RR(&running_queue[queue_turn], running_queue[queue_turn].head->pid);
+                    
+                    Add_process_RR(&running_queue[(queue_turn+1<11)?queue_turn+1:queue_turn], degradated);
+                    printf("degradation happened");
+
+                quantum_counter = 0;
+                
+            }
+        }
+    }
+    printf("Scheduler ended\n");
+
+    while (wait(NULL) > 0);
+
+    msgctl(to_bus_msgq_id, IPC_RMID, NULL);
+    destroyClk(true);
+
+
+
+
+
+
+
+}
 void run_PHPF(int to_sched_msgq_id) {
     PHPF_Queue running_queue;
     running_queue.head = NULL;
@@ -236,7 +349,7 @@ int main(int argc, char *argv[])
 
     algorithm = atoi(argv[1]);
     quantum = 0;
-    if(algorithm == 3) {
+    if(algorithm == 3 || algorithm == 4) {
         quantum = atoi(argv[2]);
     }
     sscanf(argv[3],"%d",&process_count);
@@ -253,6 +366,8 @@ int main(int argc, char *argv[])
         case 3:
             run_RR(to_sched_msgq_id);
             break;
+        case 4:
+            run_MLFP(to_sched_msgq_id);
     }
     exit(0);
     //TODO: implement the scheduler.
