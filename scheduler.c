@@ -94,6 +94,7 @@ void run_RR(int to_sched_msgq_id) {
     msgctl(to_bus_msgq_id, IPC_RMID, NULL);
     destroyClk(true);
 }
+
 void run_MLFP(int to_sched_msgq_id) {
     RR_Queue running_queue[11];
     for(int i=0;i<11;i++)
@@ -200,14 +201,8 @@ void run_MLFP(int to_sched_msgq_id) {
 
     msgctl(to_bus_msgq_id, IPC_RMID, NULL);
     destroyClk(true);
-
-
-
-
-
-
-
 }
+
 void run_PHPF(int to_sched_msgq_id) {
     PCBEntry pcbtable[process_count+1];
     int activeProcess = 0;
