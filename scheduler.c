@@ -1,10 +1,14 @@
 #include "SJF_utils.h"
 #include "PHPF_utils.h"
 #include "RR_utils.h"
+#include "PCB_utils.h"
 
 int algorithm, quantum, process_count;
 
 void run_RR(int to_sched_msgq_id) {
+    PCBEntry pcbtable[process_count+1];
+    int activeProcess = 0;
+
     RR_Queue running_queue;
     running_queue.head = NULL;
     running_queue.active = NULL;
@@ -19,12 +23,12 @@ void run_RR(int to_sched_msgq_id) {
     }
 
     initClk();
-    int time_progress = getClk() - 1;
+    int time_progress = getClk();
     int finishedProcs = 0, quantum_counter = 0;
 
     while (finishedProcs < process_count) {
         if (getClk() == time_progress + 1) {
-            printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk()+1);
+            printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk());
             usleep(50000);
             time_progress = getClk();
             msgbuff message;
@@ -34,7 +38,7 @@ void run_RR(int to_sched_msgq_id) {
                 sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
                 int pid = fork();
                 if (pid == 0) {
-                    printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk()+1);
+                    printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk());
                     char *argsProcess[3] = {"./process.out", message.mtext, NULL};
                     if (execv(argsProcess[0], argsProcess) == -1) {
                         perror("execv failed");
@@ -45,6 +49,8 @@ void run_RR(int to_sched_msgq_id) {
                     newNode->pid = id;
                     newNode->next = NULL;
                     Add_process_RR(&running_queue, newNode);
+
+                    addPCBentry(pcbtable, id, getClk(), runtime, priority);
                 } else {
                     perror("Fork failed");
                 }
@@ -56,8 +62,10 @@ void run_RR(int to_sched_msgq_id) {
 
             if (running_queue.active) {
                 int id = running_queue.active->pid;
-                printf("Process %d is active at time %d.\n", id, getClk()+1);
                 message.mtype = id;
+
+                advancePCBtable(pcbtable, id, activeProcess, process_count);
+                activeProcess = id;
                 if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
                     perror("msgsnd failed");
                 }
@@ -88,6 +96,9 @@ void run_RR(int to_sched_msgq_id) {
 }
 
 void run_PHPF(int to_sched_msgq_id) {
+    PCBEntry pcbtable[process_count+1];
+    int activeProcess = 0;
+
     PHPF_Queue running_queue;
     running_queue.head = NULL;
 
@@ -95,17 +106,20 @@ void run_PHPF(int to_sched_msgq_id) {
     key_t bus_id = ftok("busfile", 65);
     to_bus_msgq_id = msgget(bus_id, 0666 | IPC_CREAT);
 
+    key_t semkey = ftok("semfile", 75);
+    int sem_id = semget(semkey, 1, IPC_CREAT | 0666);
+
     if(to_bus_msgq_id == -1) {
         perror("error in creating up queue\n");
         exit(-1);
     }
 
     initClk();
-    int time_progress = getClk() - 1;
+    int time_progress = getClk();
     int finishedProcs = 0;
     while (finishedProcs < process_count) {
     if (getClk() == time_progress + 1) {
-    printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk()+1);
+        printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk());
         usleep(50000);
         time_progress = getClk();
         msgbuff message;
@@ -126,28 +140,33 @@ void run_PHPF(int to_sched_msgq_id) {
                 newNode->pid = id;
                 newNode->next = NULL;
                 Add_Process_PHPF(&running_queue, newNode);
-                printf("Process %d with priority %d has arrived at time %d\n", id, priority, getClk()+1);
+
+                addPCBentry(pcbtable, id, getClk(), runtime, priority);
             } else {
                 perror("Fork failed");
             }
         }
 
         if (running_queue.head) {
-            msgbuff message;
             int id = running_queue.head->pid;
             message.mtype = id;
+            
+            advancePCBtable(pcbtable, id, activeProcess, process_count);
+            activeProcess = id;
             if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
                 perror("msgsnd failed");
-                }
             }
         }
 
-        usleep(50000);
-        msgbuff message;
+        usleep(80000);
         int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
         if(rec_val != -1) {
             Remove_Process_PHPF(&running_queue);
+            if(running_queue.head == NULL) {
+                activeProcess = 0;
+            }
             finishedProcs++;
+        }
         }
     }
     while (wait(NULL) > 0);
@@ -158,6 +177,9 @@ void run_PHPF(int to_sched_msgq_id) {
 }
 
 void run_SJF(int to_sched_msgq_id) {
+    PCBEntry pcbtable[process_count+1];
+    int activeProcess = 0;
+
     SJF_Queue running_queue;
     running_queue.head = NULL;
 
@@ -174,11 +196,11 @@ void run_SJF(int to_sched_msgq_id) {
     }
 
     initClk();
-    int time_progress = getClk() - 1;
+    int time_progress = getClk();
     int finishedProcs = 0;
     while (finishedProcs < process_count) {
     if (getClk() == time_progress + 1) {
-        printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk()+1);
+        printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk());
         usleep(50000);
         time_progress = getClk();
         msgbuff message;
@@ -199,7 +221,8 @@ void run_SJF(int to_sched_msgq_id) {
                 newNode->pid = id;
                 newNode->next = NULL;
                 Add_Process_SJF(&running_queue, newNode);
-                printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk()+1);
+
+                addPCBentry(pcbtable, id, getClk(), runtime, priority);
             } else {
                 perror("Fork failed");
             }
@@ -208,15 +231,21 @@ void run_SJF(int to_sched_msgq_id) {
         if (running_queue.head) {
             int id = running_queue.head->pid;
             message.mtype = id;
+            
+            advancePCBtable(pcbtable, id, activeProcess, process_count);
+            activeProcess = id;
             if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
                 perror("msgsnd failed");
             }
         }
 
-        usleep(50000);
+        usleep(80000);
         int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
         if(rec_val != -1) {
             Remove_SJF(&running_queue);
+            if(running_queue.head == NULL) {
+                activeProcess = 0;
+            }
             finishedProcs++;
         }
         }

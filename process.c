@@ -16,7 +16,6 @@ int main(int agrc, char *argv[])
     initClk();
     remainingtime = runtime;
     int currenttime = getClk() - 1;
-    printf("process id %d started at time %d\n",id,getClk()+1);
     //TODO The process needs to get the remaining time from somewhere
     while (true) {
         if(getClk() >= currenttime + 1) {
@@ -33,13 +32,12 @@ int main(int agrc, char *argv[])
             }
             remainingtime--;
             currenttime = getClk();
-            printf("advancing process id %d at time %d time left %d\n", id, getClk()+1, remainingtime);
             if(remainingtime == 0) {
                 break;
             }
         }
     }
-    printf("process id %d finished at time %d\n",id,getClk()+1);
+
     msgbuff message;
     message.mtype = 99;
     char smthn [70];
