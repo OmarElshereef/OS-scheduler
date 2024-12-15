@@ -24,6 +24,7 @@ void final_performance()
 
     log_files_close();
 }
+
 void run_RR(int to_sched_msgq_id) {
     PCBEntry pcbtable[process_count+1];
     int activeProcess = 0;
@@ -81,6 +82,15 @@ void run_RR(int to_sched_msgq_id) {
                 }
             }
 
+            if (quantum_counter == quantum) {
+                if (running_queue.active != NULL) {
+                    printf("Quantum has ended on %d at time %d", running_queue.active->pid, getClk());
+                    Advance_process_RR(&running_queue);
+                    printf(", switching to next process %d.\n", running_queue.active->pid);
+                quantum_counter = 0;
+                }
+            }
+
             if(running_queue.active) {
                 quantum_counter++;
             }
@@ -102,14 +112,6 @@ void run_RR(int to_sched_msgq_id) {
                     Remove_Process_RR(&running_queue, running_queue.active->pid);
                     finishedProcs++;
                     quantum_counter = 0;
-            }
-
-            if (quantum_counter == quantum) {
-                if (running_queue.active != NULL) {
-                    printf("Quantum has ended on %d at time %d, switching to next process.\n", running_queue.active->pid, getClk());
-                    Advance_process_RR(&running_queue);
-                quantum_counter = 0;
-                }
             }
         }
     }
