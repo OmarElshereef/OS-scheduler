@@ -159,6 +159,7 @@ int main(int argc, char *argv[])
     // 7. Clear clock resources
     free(ptr);
     int status;
+
     waitpid(-1, &status, 0);
     clearResources(0);
     return 0;

@@ -4,7 +4,26 @@
 #include "PCB_utils.h"
 
 int algorithm, quantum, process_count;
+int first_clk=0,last_clk;
+void final_performance()
+{
 
+    const char *filePath2 = "scheduler.perf";
+    FILE *file2 ;
+
+    file2 = fopen(filePath2, "w");
+    float performance[3];
+    get_performance(performance);
+    float cpu_utilization=((performance[0])/((float)(last_clk-first_clk)))*100;
+    float avg_wta=performance[1]/(float)process_count;
+    float avg_wait=performance[2]/(float)process_count;
+    fprintf(file2,"CPU utilization = %.2f\nAvg WTA = %.2f\nAvg Waiting = %.2f\n",cpu_utilization,avg_wta,avg_wait);
+
+    fflush(file2);
+    fclose(file2);
+
+    log_files_close();
+}
 void run_RR(int to_sched_msgq_id) {
     PCBEntry pcbtable[process_count+1];
     int activeProcess = 0;
@@ -31,12 +50,18 @@ void run_RR(int to_sched_msgq_id) {
             printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk());
             usleep(50000);
             time_progress = getClk();
+            last_clk=getClk()+1;
             msgbuff message;
 
             while (msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
                 int id, runtime, priority;
                 sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
+                if(first_clk==0)
+                {
+                    first_clk=getClk();
+                }
                 int pid = fork();
+                
                 if (pid == 0) {
                     printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk());
                     char *argsProcess[3] = {"./process.out", message.mtext, NULL};
@@ -88,7 +113,7 @@ void run_RR(int to_sched_msgq_id) {
             }
         }
     }
-
+    final_performance();
     while (wait(NULL) > 0);
 
     msgctl(to_bus_msgq_id, IPC_RMID, NULL);
@@ -126,11 +151,17 @@ void run_MLFP(int to_sched_msgq_id) {
             
             usleep(50000);
             time_progress = getClk();
+            last_clk=getClk()+1;
+
             msgbuff message;
             
             while (msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
                 int id, runtime, priority;
                 sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
+                if(first_clk==0)
+                {
+                    first_clk=getClk();
+                }
                 int pid = fork();
                 if (pid == 0) {
                     //printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk());
@@ -247,7 +278,7 @@ void run_MLFP(int to_sched_msgq_id) {
             }
         }
     }
-
+    final_performance();
     while (wait(NULL) > 0);
 
     msgctl(to_bus_msgq_id, IPC_RMID, NULL);
@@ -281,11 +312,17 @@ void run_PHPF(int to_sched_msgq_id) {
         printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk());
         usleep(50000);
         time_progress = getClk();
+        last_clk=getClk()+1;
+
         msgbuff message;
 
         while(msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
             int id, runtime, priority;
             sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
+            if(first_clk==0)
+            {
+                first_clk=getClk();
+            }
             int pid = fork();
             if (pid == 0) {
                 char *argsProcess[4] = {"./process.out", message.mtext, NULL};
@@ -328,6 +365,7 @@ void run_PHPF(int to_sched_msgq_id) {
         }
         }
     }
+    final_performance();
     while (wait(NULL) > 0);
 
     // Clean up resources
@@ -362,11 +400,17 @@ void run_SJF(int to_sched_msgq_id) {
         printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk());
         usleep(50000);
         time_progress = getClk();
+        last_clk=getClk()+1;
+
         msgbuff message;
 
         while(msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
             int id, runtime, priority;
             sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
+            if(first_clk==0)
+            {
+                first_clk=getClk();
+            }
             int pid = fork();
             if (pid == 0) {
                 char *argsProcess[4] = {"./process.out", message.mtext, NULL};
@@ -409,6 +453,7 @@ void run_SJF(int to_sched_msgq_id) {
         }
         }
     }
+    final_performance();
     while (wait(NULL) > 0);
 
     // Clean up resources
@@ -418,6 +463,8 @@ void run_SJF(int to_sched_msgq_id) {
 
 int main(int argc, char *argv[])
 {
+    log_files_init();
+    
     int to_sched_msgq_id, send_val;
     key_t key_id = ftok("procfile", 65);
     to_sched_msgq_id = msgget(key_id, 0666 | IPC_CREAT);
@@ -443,7 +490,9 @@ int main(int argc, char *argv[])
             break;
         case 4:
             run_MLFP(to_sched_msgq_id);
+            break;
     }
+    
     exit(0);
     //TODO: implement the scheduler.
     //TODO: upon termination release the clock resources.
