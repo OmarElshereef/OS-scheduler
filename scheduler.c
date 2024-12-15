@@ -186,6 +186,7 @@ void run_MLFP(int to_sched_msgq_id) {
             if(quantum_counter==0)
             {
                 non_empty_queues=0;
+                int previous_turn=queue_turn;
                 queue_turn=11;
                 for(int i=0;i<11;i++)
                 {
@@ -200,6 +201,10 @@ void run_MLFP(int to_sched_msgq_id) {
                     }
 
                 }
+                if(previous_turn==10 )
+                {
+                    first_time_queue10=false;
+                }
             }
             if(non_empty_queues) {
                 quantum_counter++;
@@ -209,7 +214,7 @@ void run_MLFP(int to_sched_msgq_id) {
                 advancePCBtable(pcbtable, id, activeProcess, process_count);
                 activeProcess = id;
                 if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
-                    perror("msgsnd failed");
+                    perror("msgsnd failed yo");
                 }
             }
 
@@ -227,7 +232,7 @@ void run_MLFP(int to_sched_msgq_id) {
                     {
                         if(Rounded_Back_to_start(&running_queue[10]))
                         {
-                            
+                            printf("nooo\n");
                             RR_Queue temp;
                             temp.active=NULL;
                             temp.head=NULL;
@@ -263,7 +268,9 @@ void run_MLFP(int to_sched_msgq_id) {
                             }
                             else
                             {
+                                
                                 first_time_queue10=false;
+
                             }
                         }
                     }
