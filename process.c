@@ -38,6 +38,7 @@ int main(int agrc, char *argv[])
         }
     }
 
+    printf("Process %d with priority %d has finished at time %d.\n", id, priority, getClk());
     msgbuff message;
     message.mtype = 99;
     char smthn [70];
