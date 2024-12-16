@@ -82,7 +82,7 @@ void advancePCBtable(PCBEntry* pcbtable, int activeProcess, int oldProcess, int 
     DecrementPCBentrytime(pcbtable, activeProcess);
 
     for(int i = 1; i <= process_count; i++) {
-        if(pcbtable[i].pid != activeProcess) {
+        if(pcbtable[i].pid != activeProcess && pcbtable[i].state == 0) {
             pcbtable[i].totalwait++;
         }
     }
