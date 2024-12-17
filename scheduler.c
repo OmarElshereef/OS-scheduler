@@ -349,9 +349,6 @@ void run_SJF(int to_sched_msgq_id) {
     key_t bus_id = ftok("busfile", 65);
     to_bus_msgq_id = msgget(bus_id, 0666 | IPC_CREAT);
 
-    key_t semkey = ftok("semfile", 75);
-    int sem_id = semget(semkey, 1, IPC_CREAT | 0666);
-
     if(to_bus_msgq_id == -1) {
         perror("error in creating up queue\n");
         exit(-1);
