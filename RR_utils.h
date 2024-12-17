@@ -9,39 +9,22 @@ typedef struct Node
 
 typedef struct {
     Node* head;
-    Node* active;
 } RR_Queue;
 
 bool Advance_process_RR(RR_Queue* q) 
 {
     if (!q || q->head == NULL) return false;
 
-    q->active = q->active->next; 
+    q->head = q->head->next;
     return true;
 }
 
-bool Rounded_Back_to_start(RR_Queue* q)
-{
-    if(!q)
-    {
-        return false;
-    }
-        if(q->active->next == q->head)
-        {
-
-            return true;
-        } 
-
-    return false;
-
-}
 bool Add_process_RR(RR_Queue* q,Node* node)
 {
     if (!q || !node) return false;
 
     if (q->head == NULL) {
         q->head = node;
-        q->active = node;
         node->next = node; 
         return true;
     }
@@ -67,7 +50,6 @@ bool Remove_Process_RR(RR_Queue* q, int pid) {
     if (current->next == current) {
         if (current->pid == pid) {
             q->head = NULL;
-            q->active = NULL;
             free(current);
             return true;
         }
@@ -92,9 +74,6 @@ bool Remove_Process_RR(RR_Queue* q, int pid) {
             }
 
             // Update the active pointer if needed
-            if (current == q->active) {
-                q->active = current->next;
-            }
 
             free(current);
             return true;
@@ -117,7 +96,6 @@ Node* Dequeue_Process_RR(RR_Queue* q, int pid) {
     if (current->next == current) {
         if (current->pid == pid) {
             q->head = NULL;
-            q->active = NULL;
             
             return current;
         }
@@ -142,9 +120,7 @@ Node* Dequeue_Process_RR(RR_Queue* q, int pid) {
             }
 
             // Update the active pointer if needed
-            if (current == q->active) {
-                q->active = current->next;
-            }
+
 
             return current;
         }

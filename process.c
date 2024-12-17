@@ -20,6 +20,9 @@ int main(int agrc, char *argv[])
     while (true) {
         if(getClk() >= currenttime + 1) {
             usleep(75000);
+            if(remainingtime <= 0) {
+                break;
+            }
             msgbuff message;
             rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), id, IPC_NOWAIT);
             if (rec_val == -1) {
@@ -32,7 +35,7 @@ int main(int agrc, char *argv[])
             }
             remainingtime--;
             currenttime = getClk();
-            if(remainingtime == 0) {
+            if(remainingtime <= 0) {
                 break;
             }
         }

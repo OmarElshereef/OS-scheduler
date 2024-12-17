@@ -16,7 +16,7 @@ void final_performance()
     file2 = fopen(filePath2, "w");
     float performance[3];
     get_performance(performance);
-    float cpu_utilization=((performance[0])/((float)(last_clk-first_clk)))*100;
+    float cpu_utilization=((performance[0])/((float)(last_clk-1)))*100;
     float avg_wta=performance[1]/(float)process_count;
     float avg_wait=performance[2]/(float)process_count;
     fprintf(file2,"CPU utilization = %.2f\nAvg WTA = %.2f\nAvg Waiting = %.2f\n",cpu_utilization,avg_wta,avg_wait);
@@ -34,7 +34,6 @@ void run_MLFP(int to_sched_msgq_id) {
     MLFP_Queue running_queue[11];
     for(int i=0;i<11;i++) {
         running_queue[i].head = NULL;
-        running_queue[i].active = NULL;
         running_queue[i].count = 0;
     }
 
@@ -49,7 +48,7 @@ void run_MLFP(int to_sched_msgq_id) {
 
     initClk();
     int time_progress = getClk();
-    int finishedProcs = 0, quantum_counter = 0, currentPriority = 0;
+    int finishedProcs = 0, quantum_counter = 0, currentPriority = 0, iteration = 0;
 
     while(finishedProcs < process_count) {
         if(getClk() == time_progress +1) {
@@ -91,15 +90,24 @@ void run_MLFP(int to_sched_msgq_id) {
                 }
             }
 
+            int count = 0;
             while(running_queue[currentPriority].count == 0) {
+                if(count >= 11) {
+                    break;
+                }
                 currentPriority = (currentPriority+1)%11;
+                count++;
             }
-            activeProcess = running_queue[currentPriority].active->pid;
+            if(count == 11) {
+                continue;
+            }
+            activeProcess = running_queue[currentPriority].head->pid;
 
             if(quantum_counter == quantum) {
                 Advance_process_MLFP(&running_queue[currentPriority]);
                 quantum_counter = 0;
-                if(is_head(&running_queue[currentPriority])) {
+                if(iteration == running_queue[currentPriority].count) {
+                    iteration = 0;
                     int oldPriority = currentPriority;
                     int minChange = 11;
                     currentPriority = (currentPriority+1)%11;
@@ -116,21 +124,22 @@ void run_MLFP(int to_sched_msgq_id) {
                         }
                         else {
                             add_procces_MLFP(&running_queue[currentPriority], temp);
+                            iteration++;
                         }
                     }
                 }
                 else {
-                    printf("going to next process %d\n", running_queue[currentPriority].active->pid);
+                    printf("going to next process %d\n", running_queue[currentPriority].head->pid);
                 }
             }
 
-            if(running_queue[currentPriority].active) {
+            if(running_queue[currentPriority].head) {
                 quantum_counter++;
             }
 
-            if (running_queue[currentPriority].active) {
-                printf("running process %d\n", running_queue[currentPriority].active->pid);
-                int id = running_queue[currentPriority].active->pid;
+            if (running_queue[currentPriority].head) {
+                printf("running process %d\n", running_queue[currentPriority].head->pid);
+                int id = running_queue[currentPriority].head->pid;
                 message.mtype = id;
 
                 advancePCBtable(pcbtable, id, activeProcess, process_count);
@@ -143,8 +152,8 @@ void run_MLFP(int to_sched_msgq_id) {
             usleep(100000);
             int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
             if (rec_val != -1) {
-                printf("removing process %d\n", running_queue[currentPriority].active->pid);
-                remove_process_MLFP(&running_queue[currentPriority],running_queue[currentPriority].active->pid, 1);
+                printf("removing process %d\n", running_queue[currentPriority].head->pid);
+                remove_process_MLFP(&running_queue[currentPriority],running_queue[currentPriority].head->pid, 1);
                 finishedProcs++;
                 quantum_counter = 0;
             }
@@ -159,7 +168,6 @@ void run_RR(int to_sched_msgq_id) {
 
     RR_Queue running_queue;
     running_queue.head = NULL;
-    running_queue.active = NULL;
 
     int to_bus_msgq_id, send_val;
     key_t bus_id = ftok("busfile", 65);
@@ -211,20 +219,20 @@ void run_RR(int to_sched_msgq_id) {
             }
 
             if (quantum_counter == quantum) {
-                if (running_queue.active != NULL) {
-                    printf("Quantum has ended on %d at time %d", running_queue.active->pid, getClk());
+                if (running_queue.head != NULL) {
+                    printf("Quantum has ended on %d at time %d", running_queue.head->pid, getClk());
                     Advance_process_RR(&running_queue);
-                    printf(", switching to next process %d.\n", running_queue.active->pid);
+                    printf(", switching to next process %d.\n", running_queue.head->pid);
                 quantum_counter = 0;
                 }
             }
 
-            if(running_queue.active) {
+            if(running_queue.head) {
                 quantum_counter++;
             }
 
-            if (running_queue.active) {
-                int id = running_queue.active->pid;
+            if (running_queue.head) {
+                int id = running_queue.head->pid;
                 message.mtype = id;
 
                 advancePCBtable(pcbtable, id, activeProcess, process_count);
@@ -237,7 +245,7 @@ void run_RR(int to_sched_msgq_id) {
             usleep(100000);
             int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
             if (rec_val != -1) {
-                    Remove_Process_RR(&running_queue, running_queue.active->pid);
+                    Remove_Process_RR(&running_queue, running_queue.head->pid);
                     finishedProcs++;
                     quantum_counter = 0;
             }

@@ -6,14 +6,12 @@ typedef struct MLFP_Node {
 
 typedef struct {
     struct MLFP_Node* head;
-    struct MLFP_Node* active;
     int count;
 }MLFP_Queue;
 
 void add_procces_MLFP(MLFP_Queue* queue, MLFP_Node* new_node) {
     if(queue->head == NULL) {
         queue->head = new_node;
-        queue->active = new_node;
         queue->head->next = new_node;
         queue->count++;
         return;
@@ -40,14 +38,7 @@ void Advance_process_MLFP(MLFP_Queue* queue) {
     if(queue->head == NULL) {
         return;
     }
-    queue->active = queue->active->next;
-}
-
-int is_head(MLFP_Queue* queue) {
-    if(queue->head == queue->active) {
-        return 1;
-    }
-    return 0;
+    queue->head = queue->head->next;
 }
 
 bool remove_process_MLFP(MLFP_Queue* q, int pid, int delete) {
@@ -60,7 +51,6 @@ bool remove_process_MLFP(MLFP_Queue* q, int pid, int delete) {
     if (current->next == current) {
         if (current->pid == pid) {
             q->head = NULL;
-            q->active = NULL;
             if(delete) {
                 free(current);
             }
@@ -85,11 +75,6 @@ bool remove_process_MLFP(MLFP_Queue* q, int pid, int delete) {
                 tail->next = q->head; // Maintain the circular link
             } else if (previous) {
                 previous->next = current->next;
-            }
-
-            // Update the active pointer if needed
-            if (current == q->active) {
-                q->active = current->next;
             }
 
             if(delete) {

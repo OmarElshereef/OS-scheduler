@@ -47,7 +47,7 @@ void addPCBentry(PCBEntry* pcbtable, int id, int arrival_time, int run_time, int
 
 void DecrementPCBentrytime(PCBEntry* pcbtable, int id) {
     pcbtable[id].remaining_time--;
-    if(pcbtable[id].remaining_time == 0) {
+    if(pcbtable[id].remaining_time <= 0) {
         pcbtable[id].state = 3;
         int TA=getClk()+1-pcbtable[id].arrival_time;
         float WTA=(float)TA/pcbtable[id].run_time;
