@@ -41,14 +41,14 @@ void addPCBentry(PCBEntry* pcbtable, int id, int arrival_time, int run_time, int
     pcbtable[id].run_time = run_time;
     pcbtable[id].priority = priority;
     pcbtable[id].remaining_time = run_time;
-    pcbtable[id].state = 0; // 0: ready, 1: running 2: blocked
+    pcbtable[id].state = 0; // 0: ready, 1: running, 2: blocked 3: finished
     pcbtable[id].totalwait = 0;
 }
 
 void DecrementPCBentrytime(PCBEntry* pcbtable, int id) {
     pcbtable[id].remaining_time--;
     if(pcbtable[id].remaining_time == 0) {
-        pcbtable[id].state = 0;
+        pcbtable[id].state = 3;
         int TA=getClk()+1-pcbtable[id].arrival_time;
         float WTA=(float)TA/pcbtable[id].run_time;
         total_runtime+=pcbtable[id].run_time;
@@ -82,7 +82,7 @@ void advancePCBtable(PCBEntry* pcbtable, int activeProcess, int oldProcess, int 
     DecrementPCBentrytime(pcbtable, activeProcess);
 
     for(int i = 1; i <= process_count; i++) {
-        if(pcbtable[i].pid != activeProcess && pcbtable[i].state == 0) {
+        if(pcbtable[i].pid != activeProcess && pcbtable[i].state != 3) {
             pcbtable[i].totalwait++;
         }
     }

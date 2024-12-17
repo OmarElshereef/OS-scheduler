@@ -2,9 +2,11 @@
 #include "PHPF_utils.h"
 #include "RR_utils.h"
 #include "PCB_utils.h"
+#include "MLFP_utils.h"
 
 int algorithm, quantum, process_count;
 int first_clk=0,last_clk;
+
 void final_performance()
 {
 
@@ -25,132 +27,7 @@ void final_performance()
     log_files_close();
 }
 
-typedef struct MLFP_Node {
-    int pid;
-    int priority;
-    struct MLFP_Node* next;
-} MLFP_Node;
-
-typedef struct {
-    struct MLFP_Node* head;
-    struct MLFP_Node* active;
-    int count;
-}MLFP_Queue;
-
-void add_procces_MLFP(MLFP_Queue* queue, MLFP_Node* new_node) {
-    if(queue->head == NULL) {
-        queue->head = new_node;
-        queue->active = new_node;
-        queue->head->next = new_node;
-        queue->count++;
-        return;
-    }
-
-    if(queue->head->next == queue->head) {
-        queue->head->next = new_node;
-        new_node->next = queue->head;
-        queue->count++;
-        return;
-    }
-
-    MLFP_Node* temp = queue->head->next;               
-    while(temp->next != queue->head) {
-        temp = temp->next;
-    }
-
-    new_node->next = queue->head;
-    temp->next = new_node;
-    queue->count++;
-}
-
-void Advance_process_MLFP(MLFP_Queue* queue) {
-    if(queue->head == NULL) {
-        return;
-    }
-    queue->active = queue->active->next;
-}
-
-int is_head(MLFP_Queue* queue) {
-    if(queue->head == queue->active) {
-        return 1;
-    }
-    return 0;
-}
-
-bool remove_process_MLFP(MLFP_Queue* q, int pid, int delete) {
-    if (!q || q->head == NULL) return false;
-
-    MLFP_Node* current = q->head;
-    MLFP_Node* previous = NULL;
-    
-    // Case 1: Only one node in the queue
-    if (current->next == current) {
-        if (current->pid == pid) {
-            q->head = NULL;
-            q->active = NULL;
-            if(delete) {
-                free(current);
-            }
-            q->count--;
-            return true;
-        }
-        return false; // PID not found
-    }
-
-    // Case 2: Multiple nodes in the queue
-    do {
-        if (current->pid == pid) {
-            if (current == q->head) {
-                // Update the head pointer
-                q->head = current->next;
-
-                // Find the tail and update its next pointer
-                MLFP_Node* tail = q->head;
-                while (tail->next != current) {
-                    tail = tail->next;
-                }
-                tail->next = q->head; // Maintain the circular link
-            } else if (previous) {
-                previous->next = current->next;
-            }
-
-            // Update the active pointer if needed
-            if (current == q->active) {
-                q->active = current->next;
-            }
-
-            if(delete) {
-                free(current);
-            }
-            q->count--;
-            return true;
-        }
-
-        previous = current;
-        current = current->next;
-    } while (current != q->head);
-
-    return false; // PID not found
-}
-
-void Print_MLFP_Queue(MLFP_Queue* q) {
-    if (!q || q->head == NULL) {
-        printf("The Round Robin Queue is empty.\n");
-        return;
-    }
-
-    printf("Round Robin Queue Elements:\n");
-
-    MLFP_Node* current = q->head;
-    do {
-        printf("Process PID: %d, Next PID: %d\n", 
-               current->pid, 
-               current->next->pid);
-        current = current->next;
-    } while (current != q->head);
-}
-
-void run(int to_sched_msgq_id) {
+void run_MLFP(int to_sched_msgq_id) {
     PCBEntry pcbtable[process_count+1];
     int activeProcess = 0;
 
@@ -224,12 +101,22 @@ void run(int to_sched_msgq_id) {
                 quantum_counter = 0;
                 if(is_head(&running_queue[currentPriority])) {
                     int oldPriority = currentPriority;
+                    int minChange = 11;
                     currentPriority = (currentPriority+1)%11;
                     printf("going to next priotiy queue %d\n", currentPriority);
                     while(running_queue[oldPriority].count > 0) {
                         MLFP_Node* temp = running_queue[oldPriority].head;
                         remove_process_MLFP(&running_queue[oldPriority], running_queue[oldPriority].head->pid, 0);
-                        add_procces_MLFP(&running_queue[currentPriority], temp);
+                        if(oldPriority == 10) {
+                            add_procces_MLFP(&running_queue[temp->priority], temp);
+                            if(minChange > temp->priority) {
+                                minChange = temp->priority;
+                            }
+                            currentPriority = minChange;
+                        }
+                        else {
+                            add_procces_MLFP(&running_queue[currentPriority], temp);
+                        }
                     }
                 }
                 else {
@@ -353,179 +240,6 @@ void run_RR(int to_sched_msgq_id) {
                     Remove_Process_RR(&running_queue, running_queue.active->pid);
                     finishedProcs++;
                     quantum_counter = 0;
-            }
-        }
-    }
-    final_performance();
-    while (wait(NULL) > 0);
-
-    msgctl(to_bus_msgq_id, IPC_RMID, NULL);
-    destroyClk(true);
-}
-
-void run_MLFP(int to_sched_msgq_id) {
-    PCBEntry pcbtable[process_count+1];
-    int activeProcess = 0;
-
-    RR_Queue running_queue[11];
-    for(int i=0;i<11;i++)
-    {
-        running_queue[i].head = NULL;
-        running_queue[i].active = NULL;
-    }
-    int to_bus_msgq_id, send_val;
-    key_t bus_id = ftok("busfile", 65);
-    to_bus_msgq_id = msgget(bus_id, 0666 | IPC_CREAT);
-
-    if (to_bus_msgq_id == -1) {
-        perror("error in creating up queue\n");
-        exit(-1);
-    }
-
-    initClk();
-    int time_progress = getClk() ;
-    int finishedProcs = 0, quantum_counter = 0;
-    int queue_turn=11;
-    int non_empty_queues=0;
-    bool first_time_queue10=true;
-    while (finishedProcs < process_count) {
-        if (getClk() == time_progress + 1) {
-            printf("\n--------------------------------------------------------------------\nTime: %d\n--------------------------------------------------------------------\n", getClk());
-            
-            usleep(50000);
-            time_progress = getClk();
-            last_clk=getClk()+1;
-
-            msgbuff message;
-            
-            while (msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
-                int id, runtime, priority;
-                sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
-                if(first_clk==0)
-                {
-                    first_clk=getClk();
-                }
-                int pid = fork();
-                if (pid == 0) {
-                    printf("Process %d with priority %d has arrived at time %d.\n", id, priority, getClk());
-                    char *argsProcess[3] = {"./process.out", message.mtext, NULL};
-                    if (execv(argsProcess[0], argsProcess) == -1) {
-                        perror("execv failed");
-                        exit(EXIT_FAILURE);
-                    }
-                } else if (pid > 0) {
-                    Node* newNode = (Node*)malloc(sizeof(Node));
-                    newNode->pid = id;
-                    newNode->priority = priority;
-                    newNode->next = NULL;
-                    Add_process_RR(&running_queue[priority], newNode);
-                    addPCBentry(pcbtable, id, getClk(), runtime, priority);
-
-                } else {
-                    perror("Fork failed");
-                }
-            }
-
-            if(quantum_counter==0)
-            {
-                non_empty_queues=0;
-                int previous_turn=queue_turn;
-                queue_turn=11;
-                for(int i=0;i<11;i++)
-                {
-                    if(!RR_isEmpty(&running_queue[i]))
-                    {
-                        non_empty_queues++;
-                        if(i<queue_turn)
-                        {
-                            queue_turn=i;
-
-                        }
-                    }
-
-                }
-                if(previous_turn==10 )
-                {
-                    first_time_queue10=false;
-                }
-            }
-
-            if(non_empty_queues) {
-                quantum_counter++;
-            
-                int id = running_queue[queue_turn].active->pid;
-                message.mtype = id;
-                advancePCBtable(pcbtable, id, activeProcess, process_count);
-                activeProcess = id;
-                if (msgsnd(to_bus_msgq_id, &message, sizeof(message.mtext), IPC_NOWAIT) == -1) {
-                    perror("msgsnd failed yo");
-                }
-            }
-
-            usleep(100000);
-            int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
-            if (rec_val != -1) {
-                    Remove_Process_RR(&running_queue[queue_turn], running_queue[queue_turn].active->pid);
-                    finishedProcs++;
-                    quantum_counter = 0;
-            }
-
-            if (quantum_counter == quantum) {
-                    printf("Quantum has ended on %d at time %d, switching to next process.\n", running_queue[queue_turn].active->pid, getClk());
-                    if(queue_turn==10)
-                    {
-                        if(Rounded_Back_to_start(&running_queue[10]))
-                        {
-                            printf("nooo\n");
-                            RR_Queue temp;
-                            temp.active=NULL;
-                            temp.head=NULL;
-                            while(RR_isEmpty(&running_queue[10])==false)
-                            {
-                                Node* p= Dequeue_Process_RR(&running_queue[10], running_queue[10].head->pid);
-                                if(p->priority==10)
-                                {
-                                    Add_process_RR(&temp, p);
-
-                                    continue;
-                                }
-                                Add_process_RR(&running_queue[p->priority], p);
-
-
-                            }
-                            while(RR_isEmpty(&temp)==false)
-                            {
-                                Node* p= Dequeue_Process_RR(&temp, temp.head->pid);
-                                Add_process_RR(&running_queue[10], p);
-
-                            }
-                            running_queue[10].active=running_queue[10].head;
-                            first_time_queue10=true;
-                            
-
-                        }
-                        else
-                        {
-                            if(first_time_queue10==false)
-                            {
-                                Advance_process_RR(&running_queue[10]);
-                            }
-                            else
-                            {
-                                
-                                first_time_queue10=false;
-
-                            }
-                        }
-                    }
-                    else{
-
-                        Node* degradated= Dequeue_Process_RR(&running_queue[queue_turn], running_queue[queue_turn].active->pid);
-                        
-                        Add_process_RR(&running_queue[queue_turn+1], degradated);
-                    }
-                quantum_counter = 0;
-                
             }
         }
     }
@@ -740,7 +454,7 @@ int main(int argc, char *argv[])
             run_RR(to_sched_msgq_id);
             break;
         case 4:
-            run(to_sched_msgq_id);
+            run_MLFP(to_sched_msgq_id);
             break;
     }
     

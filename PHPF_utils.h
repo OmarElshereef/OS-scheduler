@@ -7,7 +7,7 @@ bool Add_Process_PHPF(PHPF_Queue* q , Priority_Node* node)
 {
     if (!q || !node) return false;
 
-    if (q->head == NULL || q->head->priority < node->priority) {
+    if (q->head == NULL || q->head->priority > node->priority) {
         // Insert at the head
         node->next = q->head;
         q->head = node;
@@ -18,7 +18,7 @@ bool Add_Process_PHPF(PHPF_Queue* q , Priority_Node* node)
     Priority_Node* previous = NULL;
     Priority_Node* temp = q->head;
     
-    while (temp != NULL && temp->priority >= node->priority) {
+    while (temp != NULL && temp->priority <= node->priority) {
         previous = temp;
         temp = temp->next;
     }
@@ -37,3 +37,4 @@ bool Remove_Process_PHPF(PHPF_Queue* q)
     free(temp);
     return true;
 }
+
