@@ -4,6 +4,8 @@ typedef struct Priority_Node {
     int pid;
     struct Priority_Node* next;
     int priority;
+    int memory_size;
+    bool first_run;
 } Priority_Node;
 
 typedef struct {

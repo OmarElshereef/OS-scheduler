@@ -2,6 +2,8 @@ typedef struct MLFP_Node {
     int pid;
     int priority;
     struct MLFP_Node* next;
+    int memory_size;
+    bool first_run;
 } MLFP_Node;
 
 typedef struct {

@@ -3,7 +3,7 @@
 #include "RR_utils.h"
 #include "PCB_utils.h"
 #include "MLFP_utils.h"
-
+#include "Buddy_System.h"
 int algorithm, quantum, process_count;
 int first_clk=0,last_clk;
 
@@ -78,6 +78,7 @@ void run_MLFP(int to_sched_msgq_id) {
                     newNode->pid = id;
                     newNode->priority = priority;
                     newNode->next = NULL;
+                    newNode->first_run = true;
                     add_procces_MLFP(&running_queue[priority], newNode);
                     addPCBentry(pcbtable, id, getClk(), runtime, priority);
                     if(currentPriority > priority) {
@@ -210,6 +211,8 @@ void run_RR(int to_sched_msgq_id) {
                     Node* newNode = (Node*)malloc(sizeof(Node));
                     newNode->pid = id;
                     newNode->next = NULL;
+                    newNode->first_run = true;
+
                     Add_process_RR(&running_queue, newNode);
 
                     addPCBentry(pcbtable, id, getClk(), runtime, priority);
@@ -308,6 +311,8 @@ void run_PHPF(int to_sched_msgq_id) {
                 newNode->priority = priority;
                 newNode->pid = id;
                 newNode->next = NULL;
+                newNode->first_run = true;
+
                 Add_Process_PHPF(&running_queue, newNode);
 
                 addPCBentry(pcbtable, id, getClk(), runtime, priority);
@@ -393,6 +398,8 @@ void run_SJF(int to_sched_msgq_id) {
                 newNode->priority = runtime;
                 newNode->pid = id;
                 newNode->next = NULL;
+                newNode->first_run = true;
+
                 Add_Process_SJF(&running_queue, newNode);
 
                 addPCBentry(pcbtable, id, getClk(), runtime, priority);

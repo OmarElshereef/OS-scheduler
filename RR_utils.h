@@ -5,6 +5,8 @@ typedef struct Node
     int start_time;
     int finish_time;
     struct Node * next ; 
+    int memory_size;
+    bool first_run;
 }Node;
 
 typedef struct {
