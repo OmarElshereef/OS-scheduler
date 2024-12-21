@@ -13,6 +13,7 @@ typedef struct
     int arrival_time;
     int run_time; 
     int priority; 
+    int memory;
 } process;
 
 int main(int argc, char *argv[])
@@ -66,7 +67,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        notend_file = sscanf(line, "%d %d %d %d", &ptr[iterator].id, &ptr[iterator].arrival_time, &ptr[iterator].run_time, &ptr[iterator].priority);
+        notend_file = sscanf(line, "%d %d %d %d %d", &ptr[iterator].id, &ptr[iterator].arrival_time, &ptr[iterator].run_time, &ptr[iterator].priority, &ptr[iterator].memory);
         
 
         iterator++;
@@ -143,7 +144,7 @@ int main(int argc, char *argv[])
         // Process has arrived
         if (current_time >= ptr[next_process].arrival_time) {
             char str_message[50];
-            snprintf(str_message, sizeof(str_message), "%d %d %d", ptr[next_process].id, ptr[next_process].run_time, ptr[next_process].priority);
+            snprintf(str_message, sizeof(str_message), "%d %d %d %d", ptr[next_process].id, ptr[next_process].run_time, ptr[next_process].priority, ptr[next_process].memory);
 
             msgbuff message;
             message.mtype = 7;

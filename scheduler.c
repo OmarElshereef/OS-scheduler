@@ -4,6 +4,7 @@
 #include "PCB_utils.h"
 #include "MLFP_utils.h"
 #include "Buddy_System.h"
+#include<math.h>
 int algorithm, quantum, process_count;
 int first_clk=0,last_clk;
 
@@ -386,8 +387,8 @@ void run_SJF(int to_sched_msgq_id) {
         msgbuff message;
 
         while(msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
-            int id, runtime, priority;
-            sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
+            int id, runtime, priority, memory;
+            sscanf(message.mtext, "%d %d %d %d", &id, &runtime, &priority, &memory);
             if(first_clk==0)
             {
                 first_clk=getClk();
@@ -405,7 +406,7 @@ void run_SJF(int to_sched_msgq_id) {
                 newNode->pid = id;
                 newNode->next = NULL;
                 newNode->first_run = true;
-
+                newNode->memory_size = memory;
                 Add_Process_SJF(&running_queue, newNode);
 
                 addPCBentry(pcbtable, id, getClk(), runtime, priority);
@@ -413,7 +414,41 @@ void run_SJF(int to_sched_msgq_id) {
                 perror("Fork failed");
             }
         }
+        if(running_queue.head)
+        {
+            if(running_queue.head->first_run == true)
+            {
+                int buddy_size = best_fit_size(running_queue.head->memory_size);
 
+                if(allocate(Memory_Root, buddy_size, running_queue.head->pid) != NULL)
+                {
+                    running_queue.head->first_run = false;
+
+                }
+                else
+                {
+                    while(1)
+                    {
+                        Priority_Node *no_loc = running_queue.head;
+                        int properties[3] = {no_loc->pid, no_loc->priority, no_loc->memory_size};
+                        Waiting_enqueue(&wait_list, properties);
+                        Remove_SJF(&running_queue);
+                        if(!running_queue.head)
+                        {
+                            break;
+                        }
+                        buddy_size = best_fit_size(running_queue.head->memory_size);
+
+                        if(allocate(Memory_Root, buddy_size, running_queue.head->pid) != NULL)
+                        {
+                            running_queue.head->first_run = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+        }
         if (running_queue.head) {
             int id = running_queue.head->pid;
             message.mtype = id;
@@ -428,7 +463,25 @@ void run_SJF(int to_sched_msgq_id) {
         usleep(80000);
         int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
         if(rec_val != -1) {
+            deallocate(Memory_Root,running_queue.head->pid);
             Remove_SJF(&running_queue);
+            int mem_needed = Waiting_peek(&wait_list);
+            while(mem_needed!=-1 && allocate(Memory_Root,best_fit_size(mem_needed), -1) != NULL)
+            {
+                deallocate(Memory_Root, -1);
+
+                int prop[3];
+                Waiting_dequeue(&wait_list, prop);
+                Priority_Node* newNode = (Priority_Node*)malloc(sizeof(Priority_Node));
+                newNode->priority = prop[1];
+                newNode->pid = prop[0];
+                newNode->next = NULL;
+                newNode->first_run = true;
+                newNode->memory_size = prop[2];
+                Add_Process_SJF(&running_queue, newNode);
+                mem_needed = Waiting_peek(&wait_list);
+
+            }
             if(running_queue.head == NULL) {
                 activeProcess = 0;
             }
@@ -438,7 +491,7 @@ void run_SJF(int to_sched_msgq_id) {
     }
     final_performance();
     while (wait(NULL) > 0);
-
+    printf("processes finished\n");
     // Clean up resources
     msgctl(to_bus_msgq_id, IPC_RMID, NULL);
     destroyClk(true);

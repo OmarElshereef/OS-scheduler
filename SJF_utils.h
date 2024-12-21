@@ -1,5 +1,4 @@
 #include "headers.h"
-
 typedef struct Priority_Node {
     int pid;
     struct Priority_Node* next;

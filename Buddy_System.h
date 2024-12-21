@@ -1,4 +1,3 @@
-#include "headers.h"
 
 typedef struct Tree_Node {
     int pid;
@@ -141,7 +140,7 @@ void print_tree(Tree_Node *node, int depth) {
 //////////////////////////////////////////
 //////////////////////
 
-void Waiting_enqueue(Waiting_Queue *waiting_list, int id, int arrive, int runtime, int priority, int size)
+void Waiting_enqueue(Waiting_Queue *waiting_list, int properties[])
 {
 
     waiting_node *start = waiting_list->head;
@@ -150,11 +149,11 @@ void Waiting_enqueue(Waiting_Queue *waiting_list, int id, int arrive, int runtim
     {
 
         waiting_node *new_node = (waiting_node*)malloc(sizeof(waiting_node));
-        new_node->arrival_time = arrive;
-        new_node->run_time = runtime;
-        new_node->pid = id;
-        new_node->priority = priority;
-        new_node->size = size;
+        new_node->pid = properties[0];
+        //new_node->arrival_time = properties[1];
+        //new_node->run_time = properties[2];
+        new_node->priority = properties[1];
+        new_node->size = properties[2];
         new_node->next = NULL;
 
         waiting_list->head = new_node;
@@ -168,11 +167,12 @@ void Waiting_enqueue(Waiting_Queue *waiting_list, int id, int arrive, int runtim
     }
 
     waiting_node *new_node = (waiting_node*)malloc(sizeof(waiting_node));
-    new_node->arrival_time = arrive;
-    new_node->run_time = runtime;
-    new_node->pid = id;
-    new_node->priority = priority;
-    new_node->size = size;
+    new_node->pid = properties[0];
+    //new_node->arrival_time = properties[1];
+    //new_node->run_time = properties[2];
+    new_node->priority = properties[1];
+    new_node->size = properties[2];
+
     new_node->next = NULL;
 
     start->next = new_node;
@@ -186,15 +186,31 @@ bool Waiting_dequeue(Waiting_Queue *waiting_list, int properties[])
         return false;
     }
     properties[0] = waiting_list->head->pid;
+    properties[1] = waiting_list->head->priority;
+    properties[2] = waiting_list->head->size;
+
+
+    /*
     properties[1] = waiting_list->head->arrival_time;
     properties[2] = waiting_list->head->run_time;
     properties[3] = waiting_list->head->size;
-    properties[4] = waiting_list->head->priority;
+    properties[4] = waiting_list->head->priority;*/
 
     waiting_node *temp = waiting_list->head;
     waiting_list->head = waiting_list->head->next;
     free(temp);
+    return true;
 }
+
+int Waiting_peek(Waiting_Queue *waiting_list)
+{
+    if(waiting_list->head == NULL)
+    {
+        return -1;
+    }
+    return waiting_list->head->size;
+}
+
 
 void Waiting_print(Waiting_Queue *waiting_list)
 {
