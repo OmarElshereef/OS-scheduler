@@ -352,12 +352,18 @@ void run_PHPF(int to_sched_msgq_id) {
 }
 
 void run_SJF(int to_sched_msgq_id) {
+    //test for memory
     PCBEntry pcbtable[process_count+1];
     int activeProcess = 0;
 
     SJF_Queue running_queue;
     running_queue.head = NULL;
-
+    //new stuff
+    Tree_Node *Memory_Root = NULL;
+    Memory_Root = initialize_buddy_system(Memory_Root, 1024);
+    Waiting_Queue wait_list;
+    wait_list.head = NULL;
+    //
     int to_bus_msgq_id, send_val;
     key_t bus_id = ftok("busfile", 65);
     to_bus_msgq_id = msgget(bus_id, 0666 | IPC_CREAT);

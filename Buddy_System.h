@@ -10,9 +10,24 @@ typedef struct Tree_Node {
     int free_size;
     int start_address;
 } Tree_Node;
-Tree_Node *root;
 
-Tree_Node *initialize_buddy_system(int memory_size) {
+
+typedef struct waiting_node {
+    int pid;
+    int run_time;
+    int size;              
+    int arrival_time;
+    int priority;  
+    struct waiting_node *next;  
+} waiting_node;
+
+typedef struct {
+    waiting_node* head;
+} Waiting_Queue;
+
+
+
+Tree_Node *initialize_buddy_system(Tree_Node *root, int memory_size) {
     root = (Tree_Node *)malloc(sizeof(Tree_Node));
     root->size = memory_size;
     root->is_free = 1;
@@ -122,36 +137,83 @@ void print_tree(Tree_Node *node, int depth) {
     print_tree(node->right, depth + 1);
 }
 
-int main() {
-    int memory_size = 1024; 
-    root = initialize_buddy_system(memory_size);
+///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////
+//////////////////////
 
-    printf("Initial Tree:\n");
-    print_tree(root, 0);
+void Waiting_enqueue(Waiting_Queue *waiting_list, int id, int arrive, int runtime, int priority, int size)
+{
 
+    waiting_node *start = waiting_list->head;
 
-    Tree_Node *block3 = allocate(root, 8, 1);
-    //print_tree(root, 0);
+    if (start == NULL)
+    {
 
-    Tree_Node *block4 = allocate(root, 512, 2);
-    //print_tree(root, 0);
+        waiting_node *new_node = (waiting_node*)malloc(sizeof(waiting_node));
+        new_node->arrival_time = arrive;
+        new_node->run_time = runtime;
+        new_node->pid = id;
+        new_node->priority = priority;
+        new_node->size = size;
+        new_node->next = NULL;
 
-    Tree_Node *block1 = allocate(root, 256, 3);
-    //print_tree(root, 0);
+        waiting_list->head = new_node;
 
-    Tree_Node *block2 = allocate(root, 128, 4);
-    //print_tree(root, 0);
-    
-    deallocate(root, 3);
-    //print_tree(root, 0);
-    
-    
+        return;
+    }
 
-    allocate(root, 1, 6);
-    allocate(root, 4, 8);
+    while (start->next != NULL)
+    {
+        start = start->next;
+    }
 
-    //print_tree(root, 0);
+    waiting_node *new_node = (waiting_node*)malloc(sizeof(waiting_node));
+    new_node->arrival_time = arrive;
+    new_node->run_time = runtime;
+    new_node->pid = id;
+    new_node->priority = priority;
+    new_node->size = size;
+    new_node->next = NULL;
 
+    start->next = new_node;
 
-    return 0;
 }
+
+bool Waiting_dequeue(Waiting_Queue *waiting_list, int properties[])
+{
+    if(waiting_list->head == NULL)
+    {
+        return false;
+    }
+    properties[0] = waiting_list->head->pid;
+    properties[1] = waiting_list->head->arrival_time;
+    properties[2] = waiting_list->head->run_time;
+    properties[3] = waiting_list->head->size;
+    properties[4] = waiting_list->head->priority;
+
+    waiting_node *temp = waiting_list->head;
+    waiting_list->head = waiting_list->head->next;
+    free(temp);
+}
+
+void Waiting_print(Waiting_Queue *waiting_list)
+{
+    waiting_node *start = waiting_list->head;
+    if(start == NULL)
+    {
+        printf("There is no process in the waiting list\n");
+        return;
+    }
+    printf("The waiting list has ID's: ");
+    while(start)
+    {
+        printf("%d, ",start->pid);
+        start = start->next;
+    }
+    printf("\n");
+}
+
+int best_fit_size(int size)
+{
+    return (int)pow(2,ceil(log2(size)));
+} 
