@@ -39,7 +39,12 @@ void run_MLFP(int to_sched_msgq_id) {
         running_queue[i].head = NULL;
         running_queue[i].count = 0;
     }
-
+    //new stuff
+    Tree_Node *Memory_Root = NULL;
+    Memory_Root = initialize_buddy_system(Memory_Root, buddy_maxsize);
+    Waiting_Queue wait_list;
+    wait_list.head = NULL;
+    //
     int to_bus_msgq_id, send_val;
     key_t bus_id = ftok("busfile", 65);
     to_bus_msgq_id = msgget(bus_id, 0666 | IPC_CREAT);
@@ -62,8 +67,8 @@ void run_MLFP(int to_sched_msgq_id) {
             msgbuff message;
             
             while (msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
-                int id, runtime, priority;
-                sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
+                int id, runtime, priority, memory;
+                sscanf(message.mtext, "%d %d %d %d", &id, &runtime, &priority, &memory);
                 if(first_clk==0)
                 {
                     first_clk=getClk();
@@ -82,6 +87,8 @@ void run_MLFP(int to_sched_msgq_id) {
                     newNode->priority = priority;
                     newNode->next = NULL;
                     newNode->first_run = true;
+                    newNode->memory_size = memory;
+
                     add_procces_MLFP(&running_queue[priority], newNode);
                     addPCBentry(pcbtable, id, getClk(), runtime, priority);
                     if(currentPriority > priority) {
@@ -136,7 +143,64 @@ void run_MLFP(int to_sched_msgq_id) {
                     printf("going to next process %d\n", running_queue[currentPriority].head->pid);
                 }
             }
+            if(running_queue[currentPriority].head)
+            {
+                if(running_queue[currentPriority].head->first_run == true)
+                {
+                    int buddy_size = best_fit_size(running_queue[currentPriority].head->memory_size);
 
+                    if(allocate(Memory_Root, buddy_size, running_queue[currentPriority].head->pid) != NULL)
+                    {
+                        running_queue[currentPriority].head->first_run = false;
+
+                    }
+                    else
+                    {
+                        while(1)
+                        {
+                            while(1)
+                            {
+                                MLFP_Node *no_loc = running_queue[currentPriority].head;
+                                int properties[3] = {no_loc->pid, no_loc->priority, no_loc->memory_size};
+                                Waiting_enqueue(&wait_list, properties);
+                                remove_process_MLFP(&running_queue[currentPriority], running_queue[currentPriority].head->pid, true);
+                                if(!running_queue[currentPriority].head)
+                                {
+                                    break;
+                                }
+                                buddy_size = best_fit_size(running_queue[currentPriority].head->memory_size);
+
+                                if(running_queue[currentPriority].head->first_run == false || allocate(Memory_Root, buddy_size, running_queue[currentPriority].head->pid) != NULL)
+                                {
+                                    running_queue[currentPriority].head->first_run = false;
+                                    break;
+                                }
+                            }
+                            if(!running_queue[currentPriority].head )
+                            {
+                                currentPriority++;
+                                while(!running_queue[currentPriority].head && currentPriority!=11)
+                                {
+                                    currentPriority++;
+                                }
+                                if(currentPriority == 11)
+                                    break;
+                                buddy_size = best_fit_size(running_queue[currentPriority].head->memory_size);
+                                if(running_queue[currentPriority].head->first_run == false || allocate(Memory_Root, buddy_size, running_queue[currentPriority].head->pid))
+                                {
+                                    break;
+                                }
+                                
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+            }
             if(running_queue[currentPriority].head) {
                 quantum_counter++;
             }
@@ -157,7 +221,25 @@ void run_MLFP(int to_sched_msgq_id) {
             int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
             if (rec_val != -1) {
                 printf("removing process %d\n", running_queue[currentPriority].head->pid);
+                deallocate(Memory_Root,running_queue[currentPriority].head->pid);
                 remove_process_MLFP(&running_queue[currentPriority],running_queue[currentPriority].head->pid, 1);
+                int mem_needed = Waiting_peek(&wait_list);
+                while(mem_needed!=-1 && allocate(Memory_Root,best_fit_size(mem_needed), -1) != NULL)
+                {
+                    deallocate(Memory_Root, -1);
+
+                    int prop[3];
+                    Waiting_dequeue(&wait_list, prop);
+                    MLFP_Node* newNode = (MLFP_Node*)malloc(sizeof(MLFP_Node));
+                    newNode->priority = prop[1];
+                    newNode->pid = prop[0];
+                    newNode->next = NULL;
+                    newNode->first_run = true;
+                    newNode->memory_size = prop[2];
+                    add_procces_MLFP(&running_queue[prop[1]], newNode);
+                    mem_needed = Waiting_peek(&wait_list);
+
+                }
                 finishedProcs++;
                 quantum_counter = 0;
             }
