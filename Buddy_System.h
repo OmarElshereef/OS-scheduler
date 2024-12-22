@@ -69,6 +69,8 @@ Tree_Node *allocate(Tree_Node *node, int size, int id) {
         if(id != -1)
         {
             fprintf(mfile, "At time %d allocated %d bytes for process %d from %d to %d\n",getClk(),node->true_occupied, id, node->start_address, node->start_address-1+node->size);
+            fflush(mfile);
+
         }
         node->is_free = 0;
         node->free_size=0;
@@ -131,6 +133,7 @@ int deallocate(Tree_Node *Root, int id) {
         if(id != -1)
         {
             fprintf(mfile, "At time %d freed %d bytes from process %d from %d to %d\n",getClk()+1,Root->true_occupied, id, Root->start_address, Root->start_address-1+Root->size);
+            fflush(mfile);
         }
         free(Root->right);
         free(Root->left);
