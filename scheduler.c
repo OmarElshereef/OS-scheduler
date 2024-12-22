@@ -26,6 +26,7 @@ void final_performance()
     fclose(file2);
 
     log_files_close();
+    mem_files_close();
 }
 
 void run_MLFP(int to_sched_msgq_id) {
@@ -170,7 +171,12 @@ void run_RR(int to_sched_msgq_id) {
 
     RR_Queue running_queue;
     running_queue.head = NULL;
-
+    //new stuff
+    Tree_Node *Memory_Root = NULL;
+    Memory_Root = initialize_buddy_system(Memory_Root, 1024);
+    Waiting_Queue wait_list;
+    wait_list.head = NULL;
+    //
     int to_bus_msgq_id, send_val;
     key_t bus_id = ftok("busfile", 65);
     to_bus_msgq_id = msgget(bus_id, 0666 | IPC_CREAT);
@@ -193,8 +199,8 @@ void run_RR(int to_sched_msgq_id) {
             msgbuff message;
 
             while (msgrcv(to_sched_msgq_id, &message, sizeof(message.mtext), 7, IPC_NOWAIT) != -1) {
-                int id, runtime, priority;
-                sscanf(message.mtext, "%d %d %d", &id, &runtime, &priority);
+                int id, runtime, priority, memory;
+                sscanf(message.mtext, "%d %d %d %d", &id, &runtime, &priority, &memory);
                 if(first_clk==0)
                 {
                     first_clk=getClk();
@@ -213,6 +219,7 @@ void run_RR(int to_sched_msgq_id) {
                     newNode->pid = id;
                     newNode->next = NULL;
                     newNode->first_run = true;
+                    newNode->memory_size = memory;
 
                     Add_process_RR(&running_queue, newNode);
 
@@ -230,7 +237,41 @@ void run_RR(int to_sched_msgq_id) {
                 quantum_counter = 0;
                 }
             }
+            if(running_queue.head)
+            {
+                if(running_queue.head->first_run == true)
+                {
+                    int buddy_size = best_fit_size(running_queue.head->memory_size);
 
+                    if(allocate(Memory_Root, buddy_size, running_queue.head->pid) != NULL)
+                    {
+                        running_queue.head->first_run = false;
+
+                    }
+                    else
+                    {
+                        while(1)
+                        {
+                            Node *no_loc = running_queue.head;
+                            int properties[3] = {no_loc->pid, no_loc->priority, no_loc->memory_size};
+                            Waiting_enqueue(&wait_list, properties);
+                            Remove_Process_RR(&running_queue, running_queue.head->pid);
+                            if(!running_queue.head)
+                            {
+                                break;
+                            }
+                            buddy_size = best_fit_size(running_queue.head->memory_size);
+
+                            if(running_queue.head->first_run == false || allocate(Memory_Root, buddy_size, running_queue.head->pid) != NULL)
+                            {
+                                running_queue.head->first_run = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+            }
             if(running_queue.head) {
                 quantum_counter++;
             }
@@ -249,7 +290,25 @@ void run_RR(int to_sched_msgq_id) {
             usleep(100000);
             int rec_val = msgrcv(to_bus_msgq_id, &message, sizeof(message.mtext), 99, IPC_NOWAIT);
             if (rec_val != -1) {
-                    Remove_Process_RR(&running_queue, running_queue.head->pid);
+                deallocate(Memory_Root,running_queue.head->pid);
+                Remove_Process_RR(&running_queue, running_queue.head->pid);
+                int mem_needed = Waiting_peek(&wait_list);
+                while(mem_needed!=-1 && allocate(Memory_Root,best_fit_size(mem_needed), -1) != NULL)
+                {
+                    deallocate(Memory_Root, -1);
+
+                    int prop[3];
+                    Waiting_dequeue(&wait_list, prop);
+                    Node* newNode = (Node*)malloc(sizeof(Node));
+                    newNode->priority = prop[1];
+                    newNode->pid = prop[0];
+                    newNode->next = NULL;
+                    newNode->first_run = true;
+                    newNode->memory_size = prop[2];
+                    Add_process_RR(&running_queue, newNode);
+                    mem_needed = Waiting_peek(&wait_list);
+
+                }
                     finishedProcs++;
                     quantum_counter = 0;
             }
@@ -439,7 +498,7 @@ void run_SJF(int to_sched_msgq_id) {
                         }
                         buddy_size = best_fit_size(running_queue.head->memory_size);
 
-                        if(allocate(Memory_Root, buddy_size, running_queue.head->pid) != NULL)
+                        if(running_queue.head->first_run == false || allocate(Memory_Root, buddy_size, running_queue.head->pid) != NULL)
                         {
                             running_queue.head->first_run = false;
                             break;
@@ -500,7 +559,7 @@ void run_SJF(int to_sched_msgq_id) {
 int main(int argc, char *argv[])
 {
     log_files_init();
-    
+    mem_files_init();
     int to_sched_msgq_id, send_val;
     key_t key_id = ftok("procfile", 65);
     to_sched_msgq_id = msgget(key_id, 0666 | IPC_CREAT);

@@ -2,7 +2,8 @@
 typedef struct Tree_Node {
     int pid;
     int size;              
-    int is_free;            
+    int is_free;    
+    int true_occupied;        
     struct Tree_Node *left;      
     struct Tree_Node *right;    
     struct Tree_Node *parent;    
@@ -25,6 +26,26 @@ typedef struct {
 } Waiting_Queue;
 
 
+int dummy; //for piupose VIP
+
+
+const char *mfilePath = "memory.log";
+FILE *mfile ;
+
+
+void mem_files_init()
+{
+    mfile = fopen(mfilePath, "w");
+
+    fprintf(mfile,"#At time x allocated y bytes for process z from i to j\n");
+
+}
+void mem_files_close()
+{
+
+    fclose(mfile);
+
+}
 
 Tree_Node *initialize_buddy_system(Tree_Node *root, int memory_size) {
     root = (Tree_Node *)malloc(sizeof(Tree_Node));
@@ -44,7 +65,11 @@ Tree_Node *allocate(Tree_Node *node, int size, int id) {
     }
 
     if (node->free_size == size) {
-        printf("a memory block size: %d from address %d to %d is allocated\n",node->size, node->start_address, node->start_address-1+node->size);
+        node->true_occupied = dummy;
+        if(id != -1)
+        {
+            fprintf(mfile, "At time %d allocated %d bytes for process %d from %d to %d\n",getClk(),node->true_occupied, id, node->start_address, node->start_address-1+node->size);
+        }
         node->is_free = 0;
         node->free_size=0;
         node->pid = id;
@@ -103,8 +128,10 @@ int deallocate(Tree_Node *Root, int id) {
     }
     if(Root->pid == id)
     {
-        printf("a memory block size: %d from address %d to %d is deallocated\n",Root->size, Root->start_address, Root->start_address-1+Root->size);
-
+        if(id != -1)
+        {
+            fprintf(mfile, "At time %d freed %d bytes from process %d from %d to %d\n",getClk()+1,Root->true_occupied, id, Root->start_address, Root->start_address-1+Root->size);
+        }
         free(Root->right);
         free(Root->left);
 
@@ -231,5 +258,6 @@ void Waiting_print(Waiting_Queue *waiting_list)
 
 int best_fit_size(int size)
 {
+    dummy = size;
     return (int)pow(2,ceil(log2(size)));
 } 

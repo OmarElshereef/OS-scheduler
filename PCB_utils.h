@@ -54,7 +54,7 @@ void DecrementPCBentrytime(PCBEntry* pcbtable, int id) {
         total_runtime+=pcbtable[id].run_time;
         total_waiting+=pcbtable[id].totalwait;
         total_wta+=WTA;
-        fprintf(file,"At time %d process %d finished arr %d total %d remain %d wait %d TA %d WTA %.2f\n", getClk(), id, pcbtable[id].arrival_time, pcbtable[id].run_time, pcbtable[id].remaining_time, pcbtable[id].totalwait,TA,WTA);
+        fprintf(file,"At time %d process %d finished arr %d total %d remain %d wait %d TA %d WTA %.2f\n", getClk()+1, id, pcbtable[id].arrival_time, pcbtable[id].run_time, pcbtable[id].remaining_time, pcbtable[id].totalwait,TA,WTA);
         fflush(file);
     }
 }
