@@ -59,7 +59,8 @@ Tree_Node *initialize_buddy_system(Tree_Node *root, int memory_size) {
     return root;
 }
 
-Tree_Node *allocate(Tree_Node *node, int size, int id) {
+Tree_Node *allocate(Tree_Node *node, int size, int id) 
+{
     if (!node || !node->is_free || node->free_size < size) {
         return NULL; 
     }
@@ -124,7 +125,8 @@ Tree_Node *allocate(Tree_Node *node, int size, int id) {
     return allocated;
 }
 
-int deallocate(Tree_Node *Root, int id) {
+int deallocate(Tree_Node *Root, int id) 
+{
     if (!Root) {
         return 0;
     }
