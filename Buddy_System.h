@@ -95,7 +95,7 @@ Tree_Node *allocate(Tree_Node *node, int size, int id)
         node->left->left = NULL;
         node->left->right = NULL;
         node->left->parent = node;
-        node->left->free_size = half_size-(node->size-node->free_size);
+        node->left->free_size = half_size/*-(node->size-node->free_size)*/;
 
         node->right->size = half_size;
         node->right->start_address = node->start_address + (node->size)/2 ;
@@ -104,7 +104,7 @@ Tree_Node *allocate(Tree_Node *node, int size, int id)
         node->right->left = NULL;
         node->right->right = NULL;
         node->right->parent = node;
-        node->right->free_size = half_size-(node->size-node->free_size);
+        node->right->free_size = half_size/*-(node->size-node->free_size)*/;
 
     }
 
